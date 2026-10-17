@@ -61,6 +61,11 @@ export async function loginUser(email: string, password: string) {
       new Error("No account was found for this email. Create an account to continue."),
       { statusCode: 404 },
     );
+  if (password.length < 8)
+    throw Object.assign(
+      new Error("Password must be at least 8 characters."),
+      { statusCode: 400 },
+    );
   if (!user.passwordHash || !(await bcrypt.compare(password, user.passwordHash)))
     throw Object.assign(new Error("Incorrect password. Try again or reset it."), {
       statusCode: 401,

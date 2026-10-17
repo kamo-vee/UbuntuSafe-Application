@@ -74,7 +74,12 @@ router.get("/admin-verify", requireAuth, (req, res) => {
 
 router.post("/login", async (req, res, next) => {
   try {
-    const body = credentials.omit({ fullName: true }).parse(req.body);
+    const body = z
+      .object({
+        email: emailSchema,
+        password: z.string().min(1).max(200),
+      })
+      .parse(req.body);
     const adminEmails = (process.env.COMMUNITY_REPORT_ADMIN_EMAILS ?? "").split(",").map((value) => value.trim().toLowerCase());
     if (adminEmails.includes(body.email) && !strongPasswordSchema.safeParse(body.password).success) {
       return res.status(400).json({ message: "Administrator password must contain at least 10 characters, uppercase and lowercase letters, a number and a symbol." });
