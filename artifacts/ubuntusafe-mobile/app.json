@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "UbuntuSafe",
+    "slug": "ubuntusafe",
+    "scheme": "ubuntusafe",
+    "icon": "./assets/ubuntusafe-icon.png",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/ubuntusafe-mark.png",
+        "backgroundColor": "#10264F"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow UbuntuSafe to use Face ID to unlock your account."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/ubuntusafe-mark.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#F6F8FC"
+        }
+      ],
+      "expo-asset"
+    ],
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
