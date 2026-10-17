@@ -22,7 +22,7 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const token = await tokenGetter();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10 * 60 * 1000);
+  const timeout = setTimeout(() => controller.abort(), 5000);
   let response: Response;
   try {
     try {
