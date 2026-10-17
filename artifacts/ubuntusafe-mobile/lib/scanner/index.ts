@@ -158,7 +158,7 @@ export function scanOffline(kind: ScanKind, rawContent: string): LocalVerdict {
     detail:
       status === "safe"
         ? kind === "voice"
-          ? "No common scam signals were found in this transcript. Audio is not transcribed by this app; verify unexpected requests."
+          ? "No common scam signals were found in this voice transcript. Verify unexpected requests."
           : "No common scam signals were found offline. Stay alert and verify unexpected requests."
         : status === "danger"
           ? "Strong scam signals were found. Do not send money, passwords, PINs, or remote access."

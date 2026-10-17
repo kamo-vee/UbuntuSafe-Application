@@ -20,6 +20,14 @@
         }
       ],
       [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow UbuntuSafe to record a voice note when you tap Record.",
+          "recordAudioAndroid": true,
+          "enableBackgroundRecording": false
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/ubuntusafe-mark.png",

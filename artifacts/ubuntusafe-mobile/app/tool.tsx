@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   Alert,
   Pressable,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -229,7 +230,9 @@ export default function ToolScreen() {
       <Text style={[styles.title, { color: colors.foreground }]}>{label}</Text>
       <Text style={{ color: colors.mutedForeground }}>
         {isScreenScan
-          ? "Capture the screen or choose a screenshot. Extracted text will be checked as a suspicious message."
+          ? Platform.OS === "web"
+            ? "Share a screen or choose a screenshot. Extracted text will be checked for scam signals."
+            : "Choose a screenshot to check for scam signals. Live capture of other apps is not available in Expo Go."
           : guidance}
       </Text>
       <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
@@ -237,7 +240,7 @@ export default function ToolScreen() {
       </Text>
       {isScreenScan && (
         <Pressable disabled={busy} onPress={() => void captureScreen()} style={[styles.button, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
-          <Text style={{ color: colors.foreground, fontWeight: "800" }}>{busy ? "Reading screen..." : "Capture screen / choose screenshot"}</Text>
+          <Text style={{ color: colors.foreground, fontWeight: "800" }}>{busy ? "Reading screen..." : Platform.OS === "web" ? "Capture screen / choose screenshot" : "Choose screenshot"}</Text>
         </Pressable>
       )}
       {scanKind === "voice" && (
