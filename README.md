@@ -35,3 +35,14 @@ If PostgreSQL is installed but stopped, open Windows Services (`services.msc`), 
    ```
 
 Do not expose this development API on a public network. The database and other provider settings belong in the root `.env`; the launcher does not contain or print passwords.
+
+## Check the connection in the app
+
+Before signing in, open the **API connection** check on the sign-in screen (it is also available in Settings). It shows the app's configured API URL and tests `/api/healthz`:
+
+- **Connected** means the API and PostgreSQL are responding.
+- **Database unavailable** means the API is running but cannot reach PostgreSQL. Start/check the PostgreSQL service and review the API console.
+- **API not reachable** means the API may be stopped. If it is running on the laptop, the phone cannot reach it at the configured address; confirm both devices are on the same Wi-Fi, use the laptop's Wi-Fi IPv4 address rather than `localhost`, and allow Node.js through Windows Firewall on Private networks.
+- **API reported an error** means a server answered, but the health check failed. Confirm the URL points to this app's API and check its console.
+
+The phone cannot tell whether an unresponsive laptop API is stopped or blocked by the network from the phone alone, so the check explains both possibilities. URL credentials and query parameters are hidden in the app's display.

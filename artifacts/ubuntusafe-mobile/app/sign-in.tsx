@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useApp } from "@/context/AppContext";
+import { ApiConnectionCheck } from "@/components/ApiConnectionCheck";
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -39,7 +40,11 @@ export default function SignInScreen() {
       await signIn(email, password);
       router.replace("/(tabs)");
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Could not sign in. Try again.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Could not sign in. Try again.",
+      );
     } finally {
       setBusy(false);
     }
@@ -49,21 +54,29 @@ export default function SignInScreen() {
     try {
       if (await biometricSignIn()) router.replace("/(tabs)");
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Try signing in with your password.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Try signing in with your password.",
+      );
     } finally {
       setBusy(false);
     }
   };
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.foreground }]}>{t("signIn")}</Text>
+      <Text style={[styles.title, { color: colors.foreground }]}>
+        {t("signIn")}
+      </Text>
       {biometricUser && biometricAvailable && (
         <Pressable
           disabled={busy}
           onPress={() => void unlock()}
           style={[styles.button, { backgroundColor: colors.secondary }]}
         >
-          <Text style={{ color: colors.secondaryForeground, fontWeight: "800" }}>
+          <Text
+            style={{ color: colors.secondaryForeground, fontWeight: "800" }}
+          >
             Unlock as {biometricUser.fullName} with biometrics
           </Text>
         </Pressable>
@@ -104,8 +117,16 @@ export default function SignInScreen() {
         value={password}
         onChangeText={setPassword}
       />
-      <Pressable onPress={() => setShowPassword((visible) => !visible)}><Text style={{ color: colors.primary }}>{showPassword ? "Hide password" : "Show password"}</Text></Pressable>
-      {error ? <Text accessibilityRole="alert" style={{ color: colors.destructive }}>{error}</Text> : null}
+      <Pressable onPress={() => setShowPassword((visible) => !visible)}>
+        <Text style={{ color: colors.primary }}>
+          {showPassword ? "Hide password" : "Show password"}
+        </Text>
+      </Pressable>
+      {error ? (
+        <Text accessibilityRole="alert" style={{ color: colors.destructive }}>
+          {error}
+        </Text>
+      ) : null}
       <Pressable
         disabled={busy}
         onPress={submit}
@@ -125,6 +146,7 @@ export default function SignInScreen() {
           {t("createAccount")}
         </Text>
       </Pressable>
+      <ApiConnectionCheck />
     </View>
   );
 }

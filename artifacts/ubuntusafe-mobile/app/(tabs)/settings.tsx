@@ -14,6 +14,7 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useApp } from "@/context/AppContext";
 import { languages } from "@/constants/i18n";
+import { ApiConnectionCheck } from "@/components/ApiConnectionCheck";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -41,7 +42,9 @@ export default function SettingsScreen() {
     } catch (error) {
       Alert.alert(
         "Biometrics unavailable",
-        error instanceof Error ? error.message : "Check your device settings and try again.",
+        error instanceof Error
+          ? error.message
+          : "Check your device settings and try again.",
       );
     }
   };
@@ -61,7 +64,10 @@ export default function SettingsScreen() {
     }
   };
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <ScrollView
+      style={[styles.screen, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.content}
+    >
       <Text style={[styles.eyebrow, { color: colors.primary }]}>
         UBUNTUSAFE
       </Text>
@@ -129,8 +135,10 @@ export default function SettingsScreen() {
         />
       </View>
       <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-        Your device verifies your face or fingerprint. UbuntuSafe never receives or stores biometric data.
+        Your device verifies your face or fingerprint. UbuntuSafe never receives
+        or stores biometric data.
       </Text>
+      <ApiConnectionCheck />
       <Pressable
         onPress={() => router.push("/report")}
         style={[
@@ -145,7 +153,10 @@ export default function SettingsScreen() {
         testID="logout-button"
         disabled={busy}
         onPress={() => void logout()}
-        style={[styles.logout, { borderColor: colors.primary, backgroundColor: colors.primary }]}
+        style={[
+          styles.logout,
+          { borderColor: colors.primary, backgroundColor: colors.primary },
+        ]}
       >
         {busy ? (
           <ActivityIndicator color={colors.primaryForeground} />
@@ -209,11 +220,12 @@ export default function SettingsScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 const styles = StyleSheet.create({
   screen: { flex: 1, padding: 22, paddingTop: 58 },
+  content: { paddingBottom: 28 },
   eyebrow: { fontWeight: "800", letterSpacing: 2 },
   title: { fontSize: 31, fontWeight: "800", marginTop: 8 },
   profile: {
