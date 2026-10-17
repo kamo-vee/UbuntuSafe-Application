@@ -36,7 +36,9 @@ try {
       "UbuntuSafe database tables are missing. Run `pnpm db:migrate` before starting the API.",
     );
   }
-  app.listen(port, () => console.log(`UbuntuSafe API listening on ${port}`));
+  app.listen(port, "0.0.0.0", () =>
+    console.log(`UbuntuSafe API listening on 0.0.0.0:${port}`),
+  );
 } catch (error) {
   console.error(
     "UbuntuSafe could not connect to its configured PostgreSQL database. Check DATABASE_URL and run `pnpm db:migrate`.",
