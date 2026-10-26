@@ -9,7 +9,6 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useApp } from "@/context/AppContext";
-import { ApiConnectionCheck } from "@/components/ApiConnectionCheck";
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -146,7 +145,6 @@ export default function SignInScreen() {
           {t("createAccount")}
         </Text>
       </Pressable>
-      <ApiConnectionCheck />
     </View>
   );
 }
