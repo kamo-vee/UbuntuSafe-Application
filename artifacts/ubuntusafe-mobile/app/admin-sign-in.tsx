@@ -2,11 +2,11 @@ import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useApp } from "@/context/AppContext";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, saveAuthToken } from "@/lib/api";
 
 export default function AdminSignInScreen() {
   const router = useRouter();
-  const { colors, signIn, signOut } = useApp();
+  const { colors, signOut } = useApp();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -19,8 +19,12 @@ export default function AdminSignInScreen() {
     if (!password) return setError("Enter a valid administrator password.");
     setBusy(true);
     try {
-      await signIn(normalizedEmail, password);
-      await apiRequest<{ authorized: boolean }>("/auth/admin-verify");
+      await signOut();
+      const result = await apiRequest<{ token: string }>("/auth/admin-login", {
+        method: "POST",
+        body: JSON.stringify({ email: normalizedEmail, password }),
+      });
+      await saveAuthToken(result.token);
       router.replace("/admin-dashboard");
     } catch (cause) {
       await signOut().catch(() => undefined);
@@ -29,7 +33,7 @@ export default function AdminSignInScreen() {
   };
   return <View style={[styles.screen, { backgroundColor: colors.background }]}>
     <Text style={[styles.title, { color: colors.foreground }]}>Administrator sign in</Text>
-    <Text style={{ color: colors.mutedForeground, lineHeight: 22 }}>Use an account whose email is authorized in the server’s COMMUNITY_REPORT_ADMIN_EMAILS setting.</Text>
+    <Text style={{ color: colors.mutedForeground, lineHeight: 22 }}>Use the separate administrator email and password configured for this server.</Text>
     <TextInput accessibilityLabel="Administrator email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} placeholder="Administrator email" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} />
     <TextInput accessibilityLabel="Administrator password" value={password} onChangeText={setPassword} secureTextEntry placeholder="Password" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} />
     {error ? <Text accessibilityRole="alert" style={{ color: colors.destructive }}>{error}</Text> : null}

@@ -12,6 +12,26 @@ export async function requireAuth(
     res.status(401).json({ message: "Authentication required." });
     return;
   }
+  if (tokenUser.role === "admin") {
+    const allowedAdminRequest =
+      (req.path === "/reports" && req.method === "GET") ||
+      (req.path === "/admin/records" && req.method === "GET") ||
+      (req.path === "/admin/feedback" && req.method === "GET") ||
+      (req.path === "/admin/reports/email" && req.method === "POST") ||
+      (req.path === "/logout" && req.method === "POST");
+    if (!allowedAdminRequest) {
+      res.status(403).json({ message: "Administrator sessions cannot access this resource." });
+      return;
+    }
+    req.user = {
+      id: tokenUser.id,
+      email: tokenUser.email,
+      fullName: "Administrator",
+      role: "admin",
+    };
+    next();
+    return;
+  }
   const [user] = await db
     .select({
       id: ubuntuUsers.id,

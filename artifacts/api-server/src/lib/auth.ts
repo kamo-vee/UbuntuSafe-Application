@@ -2,7 +2,14 @@ import bcrypt from "bcryptjs";
 import { db, eq, ubuntuUsers } from "@workspace/db";
 import { signToken, verifyToken } from "./crypto.js";
 
-export type AuthUser = { id: string; email: string; fullName: string; surname?: string; dateOfBirth?: string | null };
+export type AuthUser = {
+  id: string;
+  email: string;
+  fullName: string;
+  surname?: string;
+  dateOfBirth?: string | null;
+  role?: "admin";
+};
 
 export async function registerUser(
   fullName: string,
@@ -95,5 +102,7 @@ function issueUser(user: typeof ubuntuUsers.$inferSelect) {
 export function bearerUser(authorization?: string) {
   if (!authorization?.startsWith("Bearer ")) return null;
   const token = verifyToken(authorization.slice(7));
-  return token ? { id: token.userId, email: token.email } : null;
+  return token
+    ? { id: token.userId, email: token.email, role: token.role }
+    : null;
 }

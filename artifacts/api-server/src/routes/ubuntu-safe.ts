@@ -40,11 +40,8 @@ function getOpenAI(res: Response) {
 
 type ScanKind = z.infer<typeof scanBody>["kind"];
 
-function isAdmin(email: string) {
-  return (process.env.COMMUNITY_REPORT_ADMIN_EMAILS ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean).includes(email.toLowerCase());
-}
 function requireAdmin(req: Request, res: Response) {
-  if (!isAdmin(req.user!.email)) {
+  if (req.user?.role !== "admin") {
     res.status(403).json({ message: "Administrator access is required." });
     return false;
   }
@@ -207,13 +204,7 @@ router.get("/activities", async (req, res, next) => {
 
 router.get("/reports", async (req, res, next) => {
   try {
-    const reportAdminEmails = (process.env.COMMUNITY_REPORT_ADMIN_EMAILS ?? "")
-      .split(",")
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean);
-    const canViewCommunity = reportAdminEmails.includes(
-      req.user!.email.toLowerCase(),
-    );
+    const canViewCommunity = req.user?.role === "admin";
     const reportQuery = db
       .select({
         id: communityReports.id,

@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
-import { createHash, randomInt } from "node:crypto";
+import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { and, db, eq, gt, passwordResetTokens, ubuntuUsers } from "@workspace/db";
 import bcrypt from "bcryptjs";
 import { loginUser, registerUser } from "../lib/auth.js";
+import { signToken } from "../lib/crypto.js";
 import {
   isEmailDeliveryConfigured,
   isSmsDeliveryConfigured,
@@ -15,6 +16,12 @@ import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 const resetRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const adminLoginRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 5,
   standardHeaders: true,
@@ -63,13 +70,39 @@ router.post("/register", async (req, res, next) => {
   }
 });
 
-router.get("/admin-verify", requireAuth, (req, res) => {
-  const admins = (process.env.COMMUNITY_REPORT_ADMIN_EMAILS ?? "")
-    .split(",").map((value) => value.trim().toLowerCase()).filter(Boolean);
-  if (!admins.includes(req.user!.email.toLowerCase())) {
-    return res.status(403).json({ message: "This account is not authorized for administrator access." });
+function securelyEqual(left: string, right: string) {
+  const leftHash = createHash("sha256").update(left).digest();
+  const rightHash = createHash("sha256").update(right).digest();
+  return timingSafeEqual(leftHash, rightHash);
+}
+
+router.post("/admin-login", adminLoginRateLimit, async (req, res, next) => {
+  try {
+    const body = z.object({
+      email: emailSchema,
+      password: z.string().min(1).max(200),
+    }).parse(req.body);
+    const adminEmail = process.env.UBUNTUSAFE_ADMIN_EMAIL?.trim().toLowerCase();
+    const adminPassword = process.env.UBUNTUSAFE_ADMIN_PASSWORD;
+    if (!adminEmail || !adminPassword || adminPassword.length < 12) {
+      return res.status(503).json({ message: "Administrator sign-in is not configured correctly on this server." });
+    }
+    if (
+      !securelyEqual(body.email, adminEmail) ||
+      !securelyEqual(body.password, adminPassword)
+    ) {
+      return res.status(401).json({ message: "The administrator email or password is incorrect." });
+    }
+    const token = signToken({
+      userId: "admin",
+      email: adminEmail,
+      role: "admin",
+      exp: Date.now() + 8 * 60 * 60 * 1000,
+    });
+    return res.json({ token, user: { email: adminEmail, fullName: "Administrator" } });
+  } catch (error) {
+    return next(error);
   }
-  return res.json({ authorized: true });
 });
 
 router.post("/login", async (req, res, next) => {
@@ -80,10 +113,6 @@ router.post("/login", async (req, res, next) => {
         password: z.string().min(1).max(200),
       })
       .parse(req.body);
-    const adminEmails = (process.env.COMMUNITY_REPORT_ADMIN_EMAILS ?? "").split(",").map((value) => value.trim().toLowerCase());
-    if (adminEmails.includes(body.email) && !strongPasswordSchema.safeParse(body.password).success) {
-      return res.status(400).json({ message: "Administrator password must contain at least 10 characters, uppercase and lowercase letters, a number and a symbol." });
-    }
     return res.json(await loginUser(body.email, body.password));
   } catch (error) {
     return next(error);
