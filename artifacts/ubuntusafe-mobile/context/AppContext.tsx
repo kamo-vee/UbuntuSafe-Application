@@ -10,10 +10,10 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppState, useColorScheme } from "react-native";
+import { AppState, Platform, useColorScheme } from "react-native";
 import colors from "@/constants/colors";
 import { copy, languages, type Language } from "@/constants/i18n";
-import { apiRequest, clearAuthToken, saveAuthToken } from "@/lib/api";
+import { apiRequest, clearAuthToken, getAuthToken, saveAuthToken } from "@/lib/api";
 import { clearCachedUserData, initLocalDb } from "@/lib/localDb";
 
 export type AppUser = {
@@ -80,6 +80,23 @@ const THEME_KEY = "ubuntusafe.theme";
 const LANGUAGE_KEY = "ubuntusafe.language";
 const AppContext = createContext<ContextValue | null>(null);
 
+function readSession() {
+  return Platform.OS === "web"
+    ? AsyncStorage.getItem(SESSION_KEY)
+    : SecureStore.getItemAsync(SESSION_KEY);
+}
+
+function writeSession(value: string | null) {
+  if (Platform.OS === "web") {
+    return value
+      ? AsyncStorage.setItem(SESSION_KEY, value)
+      : AsyncStorage.removeItem(SESSION_KEY);
+  }
+  return value
+    ? SecureStore.setItemAsync(SESSION_KEY, value)
+    : SecureStore.deleteItemAsync(SESSION_KEY);
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const scheme = useColorScheme();
   const [user, setUser] = useState<AppUser | null>(null);
@@ -98,7 +115,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       await initLocalDb();
       const [session, storedLanguage, storedTheme] = await Promise.all([
-        SecureStore.getItemAsync(SESSION_KEY),
+        readSession(),
         AsyncStorage.getItem(LANGUAGE_KEY),
         AsyncStorage.getItem(THEME_KEY),
       ]);
@@ -143,9 +160,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const persistSession = async (nextUser: AppUser | null) => {
-    if (nextUser)
-      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(nextUser));
-    else await SecureStore.deleteItemAsync(SESSION_KEY);
+    await writeSession(nextUser ? JSON.stringify(nextUser) : null);
   };
   const signIn = async (
     email: string,
@@ -206,18 +221,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return nextUser;
   };
   const signOut = async () => {
-    try {
-      await apiRequest<void>("/auth/logout", { method: "POST" });
-    } catch {
-      /* offline logout is local and immediate */
+    const token = await getAuthToken().catch(() => null);
+    if (token) {
+      void apiRequest<void>("/auth/logout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => undefined);
     }
     try {
       await clearAuthToken();
     } finally {
       try {
-        await clearCachedUserData();
-      } finally {
         await persistSession(null);
+      } finally {
         setUser(null);
         setBiometricUser(null);
         setBiometricAvailable(false);
@@ -225,6 +241,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setLocalActivities([]);
       }
     }
+    await clearCachedUserData().catch(() => undefined);
   };
   const setLanguage = async (next: Language) => {
     setLanguageState(next);

@@ -1,5 +1,27 @@
 import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
+
+const TOKEN_KEY = "ubuntusafe.auth.token";
+
+function readToken() {
+  return Platform.OS === "web"
+    ? AsyncStorage.getItem(TOKEN_KEY)
+    : SecureStore.getItemAsync(TOKEN_KEY);
+}
+
+function writeToken(token: string) {
+  return Platform.OS === "web"
+    ? AsyncStorage.setItem(TOKEN_KEY, token)
+    : SecureStore.setItemAsync(TOKEN_KEY, token);
+}
+
+function removeToken() {
+  return Platform.OS === "web"
+    ? AsyncStorage.removeItem(TOKEN_KEY)
+    : SecureStore.deleteItemAsync(TOKEN_KEY);
+}
 
 function getLanApiUrl() {
   const hostUri = Constants.expoConfig?.hostUri;
@@ -130,17 +152,14 @@ export async function checkApiHealth(): Promise<ApiHealthResult> {
   }
 }
 
-const TOKEN_KEY = "ubuntusafe.auth.token";
-let tokenGetter: () => Promise<string | null> = () =>
-  SecureStore.getItemAsync(TOKEN_KEY);
+let tokenGetter: () => Promise<string | null> = readToken;
 
 export function setAuthTokenGetter(getter: () => Promise<string | null>) {
   tokenGetter = getter;
 }
 export const getAuthToken = () => tokenGetter();
-export const saveAuthToken = (token: string) =>
-  SecureStore.setItemAsync(TOKEN_KEY, token);
-export const clearAuthToken = () => SecureStore.deleteItemAsync(TOKEN_KEY);
+export const saveAuthToken = (token: string) => writeToken(token);
+export const clearAuthToken = () => removeToken();
 
 export async function apiRequest<T>(
   path: string,

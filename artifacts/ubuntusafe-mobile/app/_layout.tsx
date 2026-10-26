@@ -3,8 +3,6 @@ import { Alert, Pressable, StatusBar, Text, View } from "react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
 import { AppProvider } from "@/context/AppContext";
-import { setAuthTokenGetter } from "@/lib/api";
-import * as SecureStore from "expo-secure-store";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { syncNow } from "@/lib/sync";
 import { useApp } from "@/context/AppContext";
@@ -110,9 +108,6 @@ function ThemedNavigation() {
   );
 }
 export default function RootLayout() {
-  useEffect(() => {
-    setAuthTokenGetter(() => SecureStore.getItemAsync("ubuntusafe.auth.token"));
-  }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <AppProvider>
