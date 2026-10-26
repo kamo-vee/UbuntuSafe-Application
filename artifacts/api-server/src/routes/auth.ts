@@ -87,10 +87,9 @@ router.post("/admin-login", adminLoginRateLimit, async (req, res, next) => {
     if (!adminEmail || !adminPassword || adminPassword.length < 12) {
       return res.status(503).json({ message: "Administrator sign-in is not configured correctly on this server." });
     }
-    if (
-      !securelyEqual(body.email, adminEmail) ||
-      !securelyEqual(body.password, adminPassword)
-    ) {
+    const emailMatches = securelyEqual(body.email, adminEmail);
+    const passwordMatches = securelyEqual(body.password, adminPassword);
+    if (!emailMatches || !passwordMatches) {
       return res.status(401).json({ message: "The administrator email or password is incorrect." });
     }
     const token = signToken({
