@@ -1,9 +1,36 @@
 import * as SecureStore from "expo-secure-store";
+import Constants from "expo-constants";
 
-const API_URL = (
-  process.env.EXPO_PUBLIC_API_URL ??
-  `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}`
-).replace(/\/$/, "");
+function getLanApiUrl() {
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (!hostUri) return "";
+  try {
+    const value = /^[a-z][a-z\d+.-]*:\/\//i.test(hostUri)
+      ? hostUri
+      : `http://${hostUri}`;
+    const hostname = new URL(value).hostname;
+    if (
+      !hostname ||
+      hostname === "localhost" ||
+      hostname === "::1" ||
+      hostname.startsWith("127.")
+    )
+      return "";
+    return `http://${hostname}:8080`;
+  } catch {
+    return "";
+  }
+}
+
+function resolveApiUrl() {
+  const configuredUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (configuredUrl) return configuredUrl.replace(/\/$/, "");
+  const workspaceDomain = process.env.EXPO_PUBLIC_DOMAIN?.trim();
+  if (workspaceDomain) return `https://${workspaceDomain}`.replace(/\/$/, "");
+  return getLanApiUrl();
+}
+
+const API_URL = resolveApiUrl();
 
 export type ApiHealthResult = {
   apiUrl: string;
@@ -40,7 +67,7 @@ export async function checkApiHealth(): Promise<ApiHealthResult> {
       apiUrl: getApiUrlForDisplay(),
       status: "not_configured",
       message:
-        "No valid API URL is configured. Set EXPO_PUBLIC_API_URL and restart the app.",
+        "UbuntuSafe could not find the API address automatically. Start Expo in LAN mode on the computer running the API, connect the phone to the same reachable network, or set EXPO_PUBLIC_API_URL manually.",
     };
   }
 
@@ -145,7 +172,7 @@ export async function apiRequest<T>(
       ) {
         const displayUrl = getApiUrlForDisplay();
         const connectionError = new Error(
-          `UbuntuSafe could not complete the request to "${displayUrl}". Check that the API is running and that this device can open "${displayUrl}/api/healthz". On a physical Android phone, use your computer's Wi-Fi IPv4 address in EXPO_PUBLIC_API_URL, not localhost, then restart Expo.`,
+          `UbuntuSafe could not reach the API at "${displayUrl}". Check that the API is running on the computer, the phone and computer share a reachable network, and Windows Firewall allows port 8080. If automatic LAN detection is unavailable, configure EXPO_PUBLIC_API_URL and restart Expo.`,
         );
         connectionError.name = "NetworkError";
         throw connectionError;
