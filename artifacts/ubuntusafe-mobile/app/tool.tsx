@@ -102,6 +102,9 @@ export default function ToolScreen() {
         status: "safe" | "warning" | "danger";
         title: string;
         detail: string;
+        riskScore: number;
+        suspiciousIndicators: string[];
+        recommendedActions: string[];
         analysisMode: "ai" | "rules";
       }>("/scan", {
         method: "POST",
@@ -116,13 +119,28 @@ export default function ToolScreen() {
       const resultDetail = remote.analysisMode === "rules"
         ? `${remote.detail}\n\nAI risk analysis is not configured; this result uses local rules.`
         : remote.detail;
-      Alert.alert(remote.title, resultDetail, [
+      const report = [
+        resultDetail,
+        `Risk score: ${remote.riskScore}/100`,
+        `Suspicious indicators: ${remote.suspiciousIndicators.length ? remote.suspiciousIndicators.join(", ") : "No common indicators found."}`,
+        `Recommended actions: ${remote.recommendedActions.join(" ")}`,
+      ].join("\n\n");
+      Alert.alert(remote.title, report, [
         { text: "Done", onPress: () => router.back() },
       ]);
-    } catch {
+    } catch (error) {
+      if (!(error instanceof Error) || error.name !== "NetworkError") {
+        Alert.alert(
+          "Scan could not be completed",
+          error instanceof Error
+            ? error.message
+            : "The server could not complete this scan. Please try again.",
+        );
+        return;
+      }
       Alert.alert(
         `${verdict.title} (offline)`,
-        `${verdict.detail}\n\nThis scan will sync automatically when you reconnect.`,
+        `${verdict.detail}\n\nLocal rule-based check only; server analysis was unavailable. This result will sync when you reconnect.`,
         [{ text: "Done", onPress: () => router.back() }],
       );
     } finally {

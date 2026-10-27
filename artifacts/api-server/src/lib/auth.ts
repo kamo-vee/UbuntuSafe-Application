@@ -103,6 +103,6 @@ export function bearerUser(authorization?: string) {
   if (!authorization?.startsWith("Bearer ")) return null;
   const token = verifyToken(authorization.slice(7));
   return token
-    ? { id: token.userId, email: token.email, role: token.role }
+    ? { id: token.userId, email: token.email, role: token.role, exp: token.exp }
     : null;
 }

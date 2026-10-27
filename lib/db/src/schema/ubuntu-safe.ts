@@ -70,6 +70,18 @@ export const passwordResetTokens = pgTable(
   (table) => [index("password_reset_tokens_user_idx").on(table.userId)],
 );
 
+export const revokedAuthTokens = pgTable(
+  "revoked_auth_tokens",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [index("revoked_auth_tokens_expiry_idx").on(table.expiresAt)],
+);
+
 export const scans = pgTable(
   "scans",
   {

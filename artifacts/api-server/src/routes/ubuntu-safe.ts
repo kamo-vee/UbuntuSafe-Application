@@ -159,6 +159,14 @@ function classify(kind: ScanKind, content: string) {
   return danger ? "danger" : warning ? "warning" : "safe";
 }
 
+function higherRisk(
+  left: "safe" | "warning" | "danger",
+  right: "safe" | "warning" | "danger",
+) {
+  const rank = { safe: 0, warning: 1, danger: 2 } as const;
+  return rank[left] >= rank[right] ? left : right;
+}
+
 router.get("/dashboard", async (req, res, next) => {
   try {
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -354,7 +362,8 @@ router.post("/scan", async (req, res, next) => {
   try {
     const body = scanBody.parse(req.body);
     validateKind(body.kind, body.content);
-    let status: "safe" | "warning" | "danger" = classify(body.kind, body.content) as "safe" | "warning" | "danger";
+    const rulesStatus = classify(body.kind, body.content) as "safe" | "warning" | "danger";
+    let status = rulesStatus;
     let analysisMode: "ai" | "rules" = "rules";
     let aiDetail: string | undefined;
     if (process.env.OPENAI_API_KEY) {
@@ -376,8 +385,10 @@ router.post("/scan", async (req, res, next) => {
         status: z.enum(["safe", "warning", "danger"]),
         detail: z.string().min(1).max(1000),
       }).parse(JSON.parse(raw));
-      status = parsed.status;
-      aiDetail = parsed.detail;
+      status = higherRisk(rulesStatus, parsed.status);
+      // Keep the deterministic explanation when the AI result would soften
+      // a stronger rules-based warning; avoid contradictory verdict text.
+      aiDetail = status === parsed.status ? parsed.detail : undefined;
       analysisMode = "ai";
     }
     const title =
@@ -412,6 +423,15 @@ router.post("/scan", async (req, res, next) => {
         status,
         title,
         detail,
+        riskScore: status === "danger" ? 90 : status === "warning" ? 55 : 5,
+        suspiciousIndicators: status === "safe" ? [] : [
+          analysisMode === "ai" ? "Potential scam or phishing signals detected" : "Common scam signals matched",
+        ],
+        recommendedActions: status === "danger"
+          ? ["Do not pay or share passwords, PINs, or one-time codes.", "Verify through an official contact method."]
+          : status === "warning"
+            ? ["Pause before responding or opening links.", "Verify the sender independently."]
+            : ["No common scam signals were found; stay alert for unexpected requests."],
         analysisMode,
         checkedAt: row.createdAt.toISOString(),
       });

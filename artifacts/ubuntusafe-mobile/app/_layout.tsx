@@ -6,13 +6,19 @@ import { AppProvider } from "@/context/AppContext";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { syncNow } from "@/lib/sync";
 import { useApp } from "@/context/AppContext";
+import { getAuthToken } from "@/lib/api";
 
 const queryClient = new QueryClient();
 function SyncOnReconnect() {
   const { isOnline } = useNetworkStatus();
+  const { user, hydrated } = useApp();
   useEffect(() => {
-    if (isOnline) void syncNow().catch(() => undefined);
-  }, [isOnline]);
+    if (isOnline && hydrated && user) {
+      void getAuthToken()
+        .then((token) => (token ? syncNow() : undefined))
+        .catch(() => undefined);
+    }
+  }, [isOnline, hydrated, user?.id]);
   return null;
 }
 function ThemedNavigation() {

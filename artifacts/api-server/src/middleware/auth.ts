@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { bearerUser } from "../lib/auth.js";
-import { db, eq, ubuntuUsers } from "@workspace/db";
+import { and, db, eq, gt, revokedAuthTokens, ubuntuUsers } from "@workspace/db";
+import { hashContent } from "../lib/crypto.js";
 
 export async function requireAuth(
   req: Request,
@@ -10,6 +11,21 @@ export async function requireAuth(
   const tokenUser = bearerUser(req.headers.authorization);
   if (!tokenUser) {
     res.status(401).json({ message: "Authentication required." });
+    return;
+  }
+  const rawToken = req.headers.authorization!.slice("Bearer ".length);
+  const [revoked] = await db
+    .select({ tokenHash: revokedAuthTokens.tokenHash })
+    .from(revokedAuthTokens)
+    .where(
+      and(
+        eq(revokedAuthTokens.tokenHash, hashContent(rawToken)),
+        gt(revokedAuthTokens.expiresAt, new Date()),
+      ),
+    )
+    .limit(1);
+  if (revoked) {
+    res.status(401).json({ message: "This session has ended. Sign in again." });
     return;
   }
   if (tokenUser.role === "admin") {

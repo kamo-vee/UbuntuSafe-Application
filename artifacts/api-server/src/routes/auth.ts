@@ -2,10 +2,10 @@ import { Router } from "express";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
-import { and, db, eq, gt, passwordResetTokens, ubuntuUsers } from "@workspace/db";
+import { and, db, eq, gt, passwordResetTokens, revokedAuthTokens, ubuntuUsers } from "@workspace/db";
 import bcrypt from "bcryptjs";
 import { loginUser, registerUser } from "../lib/auth.js";
-import { signToken } from "../lib/crypto.js";
+import { hashContent, signToken, verifyToken } from "../lib/crypto.js";
 import {
   isEmailDeliveryConfigured,
   isSmsDeliveryConfigured,
@@ -239,7 +239,24 @@ router.post("/reset-password", resetRateLimit, async (req, res, next) => {
   }
 });
 
-router.post("/logout", requireAuth, (_req, res) => res.status(204).send());
+router.post("/logout", requireAuth, async (req, res, next) => {
+  try {
+    const token = req.headers.authorization!.slice("Bearer ".length);
+    const payload = verifyToken(token);
+    if (payload) {
+      await db
+        .insert(revokedAuthTokens)
+        .values({
+          tokenHash: hashContent(token),
+          expiresAt: new Date(payload.exp),
+        })
+        .onConflictDoNothing();
+    }
+    return res.status(204).send();
+  } catch (error) {
+    return next(error);
+  }
+});
 
 router.get("/me", requireAuth, (req, res) => res.json({ user: req.user }));
 
