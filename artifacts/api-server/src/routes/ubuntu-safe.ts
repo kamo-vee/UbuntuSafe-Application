@@ -324,8 +324,12 @@ router.post("/audio/transcribe", async (req, res, next) => {
     const body = audioBody.parse(req.body);
     const client = getOpenAI(res);
     if (!client) return;
+    const extension = {
+      "audio/mp4": "m4a", "audio/m4a": "m4a", "audio/mpeg": "mp3",
+      "audio/wav": "wav", "audio/webm": "webm",
+    }[body.mimeType];
     const transcript = await client.audio.transcriptions.create({
-      file: await toFile(Buffer.from(body.audioBase64, "base64"), "voice-note.m4a", {
+      file: await toFile(Buffer.from(body.audioBase64, "base64"), `voice-note.${extension}`, {
         type: body.mimeType,
       }),
       model: "gpt-4o-mini-transcribe",
@@ -367,10 +371,12 @@ router.post("/scan", async (req, res, next) => {
     let analysisMode: "ai" | "rules" = "rules";
     let aiDetail: string | undefined;
     if (process.env.OPENAI_API_KEY) {
-      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      try {
+      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 45000, maxRetries: 0 });
       const review = await client.chat.completions.create({
         model: "gpt-5-mini",
-        max_completion_tokens: 500,
+        max_completion_tokens: 2000,
+        reasoning_effort: "low",
         response_format: { type: "json_object" },
         messages: [
           {
@@ -390,6 +396,16 @@ router.post("/scan", async (req, res, next) => {
       // a stronger rules-based warning; avoid contradictory verdict text.
       aiDetail = status === parsed.status ? parsed.detail : undefined;
       analysisMode = "ai";
+      } catch (error) {
+        console.warn("AI scan did not complete", {
+          type: error instanceof Error ? error.name : "unknown",
+          status: error instanceof OpenAI.APIError ? error.status : undefined,
+          code: error instanceof OpenAI.APIError ? error.code : undefined,
+        });
+        return res.status(503).json({
+          message: "The AI service could not complete this scan. No result was saved. Check the AI provider configuration or try again.",
+        });
+      }
     }
     const title =
       status === "safe"
@@ -397,12 +413,12 @@ router.post("/scan", async (req, res, next) => {
         : status === "danger"
           ? "Do not continue"
           : "Review before you continue";
-    const detail = aiDetail ??
+    const detail = aiDetail ?? (
       status === "safe"
         ? "No common scam signals were found. Stay alert if the sender asks for private information."
         : status === "danger"
           ? "Strong scam signals were found. Do not send money, passwords, PINs, or remote access."
-          : "We found language commonly used in scams. Verify the sender independently before taking action.";
+          : "We found language commonly used in scams. Verify the sender independently before taking action.");
     const [row] = await db
       .insert(scans)
       .values({
@@ -415,9 +431,7 @@ router.post("/scan", async (req, res, next) => {
         deviceId: body.deviceId,
       })
       .returning();
-    res
-      .status(201)
-      .json({
+    return res.status(201).json({
         id: row.id,
         kind: row.kind,
         status,
@@ -436,7 +450,7 @@ router.post("/scan", async (req, res, next) => {
         checkedAt: row.createdAt.toISOString(),
       });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 });
 

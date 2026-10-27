@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import router from "./routes/index.js";
+import { ZodError } from "zod";
 
 const app = express();
 const origins = (process.env.WEB_ORIGINS ?? "")
@@ -28,14 +29,24 @@ app.use(
     res: express.Response,
     _next: express.NextFunction,
   ) => {
+    if (error instanceof ZodError) {
+      const issue = error.issues[0];
+      const field = issue?.path.join(" ") || "input";
+      res.status(400).json({
+        message: `Please check ${field}: ${issue?.message ?? "Enter a valid value."}`,
+      });
+      return;
+    }
     const status =
       typeof error === "object" && error && "statusCode" in error
         ? Number(error.statusCode)
-        : 400;
+        : 500;
     res
       .status(status >= 400 && status < 500 ? status : 500)
       .json({
-        message: error instanceof Error ? error.message : "Request failed.",
+        message: status >= 400 && status < 500 && error instanceof Error
+          ? error.message
+          : "The request could not be completed. Please try again.",
       });
   },
 );

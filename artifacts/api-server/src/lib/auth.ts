@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { db, eq, ubuntuUsers } from "@workspace/db";
+import { and, db, eq, isNull, ubuntuUsers } from "@workspace/db";
 import { signToken, verifyToken } from "./crypto.js";
 
 export type AuthUser = {
@@ -61,7 +61,7 @@ export async function loginUser(email: string, password: string) {
   const [user] = await db
     .select()
     .from(ubuntuUsers)
-    .where(eq(ubuntuUsers.email, email))
+    .where(and(eq(ubuntuUsers.email, email), isNull(ubuntuUsers.deletedAt)))
     .limit(1);
   if (!user)
     throw Object.assign(

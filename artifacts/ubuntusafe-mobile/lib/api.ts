@@ -167,7 +167,8 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const token = await tokenGetter();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+  const isAnalysis = ["/scan", "/audio/transcribe", "/screen/ocr"].includes(path);
+  const timeout = setTimeout(() => controller.abort(), isAnalysis ? 60000 : 5000);
   let response: Response;
   try {
     try {

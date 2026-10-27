@@ -1,4 +1,4 @@
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
@@ -6,7 +6,9 @@ import { useApp } from "@/context/AppContext";
 
 export default function TabsLayout() {
   const { isOnline } = useNetworkStatus();
-  const { colors, t } = useApp();
+  const { colors, t, user, hydrated } = useApp();
+  if (!hydrated) return null;
+  if (!user) return <Redirect href="/sign-in" />;
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       {!isOnline && (

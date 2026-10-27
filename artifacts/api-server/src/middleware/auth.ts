@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { bearerUser } from "../lib/auth.js";
-import { and, db, eq, gt, revokedAuthTokens, ubuntuUsers } from "@workspace/db";
+import { and, db, eq, gt, isNull, revokedAuthTokens, ubuntuUsers } from "@workspace/db";
 import { hashContent } from "../lib/crypto.js";
 
 export async function requireAuth(
@@ -55,7 +55,7 @@ export async function requireAuth(
       fullName: ubuntuUsers.fullName,
     })
     .from(ubuntuUsers)
-    .where(eq(ubuntuUsers.id, tokenUser.id))
+    .where(and(eq(ubuntuUsers.id, tokenUser.id), isNull(ubuntuUsers.deletedAt)))
     .limit(1);
   if (!user) {
     res.status(401).json({ message: "Account not found." });

@@ -25,9 +25,15 @@ If PostgreSQL is installed but stopped, open Windows Services (`services.msc`), 
 
 ## Connect an Android phone over Wi-Fi
 
-1. On the Windows computer, run `ipconfig` and find the IPv4 address for the active Wi-Fi adapter (for example, `192.168.1.20`).
-2. In `artifacts/ubuntusafe-mobile/.env`, set `EXPO_PUBLIC_API_URL` to `http://<computer-wi-fi-ip>:8080`, replacing the example with the actual address. Do not use `localhost` or `127.0.0.1` in the phone's setting.
-3. Keep the phone and computer on the same Wi-Fi network. Restart the mobile app after changing its `.env`.
+1. Keep the phone and computer on the same Wi-Fi network and install Expo Go on the Android phone.
+2. Leave `EXPO_PUBLIC_API_URL` blank in `artifacts/ubuntusafe-mobile/.env` to let the app detect the API computer from the Expo LAN connection.
+3. Open a second terminal in the project root and run:
+
+   ```powershell
+   pnpm --filter @workspace/ubuntusafe-mobile run dev:lan
+   ```
+
+   Scan the QR code with Expo Go. Keep both the API console and this Expo console open. This local LAN script is for running on your own computer; the hosted preview uses its existing managed workflow.
 4. If Windows Firewall blocks the connection, allow Node.js on **Private networks** only in Windows Defender Firewall. If you need a manual inbound rule, open PowerShell as Administrator and run:
 
    ```powershell
@@ -35,6 +41,30 @@ If PostgreSQL is installed but stopped, open Windows Services (`services.msc`), 
    ```
 
 Do not expose this development API on a public network. The database and other provider settings belong in the root `.env`; the launcher does not contain or print passwords.
+
+If automatic detection is unavailable, set `EXPO_PUBLIC_API_URL` to `http://<computer-wi-fi-ip>:8080` using your computer's current IPv4 address from `ipconfig`, then restart the Expo terminal. Never use `localhost` as the phone's API address.
+
+## Terminal checklist
+
+Run all commands from the project root.
+
+| Terminal | Command | Purpose |
+| --- | --- | --- |
+| Setup, once | `pnpm install` | Restore dependencies |
+| API on Windows | `pnpm start:windows` | Apply migrations, open the API console, and check database health |
+| Mobile, second terminal | `pnpm --filter @workspace/ubuntusafe-mobile run dev:lan` | Start the local Expo Go LAN preview |
+| Checks, optional terminal | `pnpm typecheck` followed by `pnpm test` | Run TypeScript and existing scanner tests |
+| Database maintenance | `pnpm --filter @workspace/api-server run db:migrate` | Apply the included non-destructive schema migrations |
+
+For a manually started API, use `pnpm --filter @workspace/api-server run dev` with a configured root `.env`. Do not run it alongside the API console already opened by `pnpm start:windows`.
+
+## Software and editor extensions
+
+- Required on the computer: Node.js LTS, pnpm, and a running PostgreSQL server.
+- Required on an Android phone for this development preview: Expo Go compatible with the project's Expo SDK.
+- No VS Code extension is required to run the app. Recommended extensions are **Expo Tools** (`expo.vscode-expo-tools`) and **Prettier** (`esbenp.prettier-vscode`). TypeScript/JavaScript support is built into VS Code.
+- Android Studio is optional for an Android emulator; it is not needed for a physical phone using Expo Go.
+- Keep `DATABASE_URL`, `SESSION_SECRET`, SMTP settings, provider keys, and separate administrator credentials private in your root `.env` locally or the workspace's secrets settings.
 
 ## Check the connection in the app
 

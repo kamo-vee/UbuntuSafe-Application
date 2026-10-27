@@ -6,21 +6,21 @@ import { requireAuth } from "../middleware/auth.js";
 const router = Router();
 router.use(requireAuth);
 const syncScan = z.object({
-  id: z.string().min(1),
+  id: z.string().uuid(),
   userId: z.string().optional(),
   kind: z.enum(["message", "voice", "email", "link", "job"]),
-  content: z.string(),
+  content: z.string().max(12000),
   status: z.enum(["safe", "warning", "danger"]),
-  title: z.string(),
-  detail: z.string(),
+  title: z.string().max(200),
+  detail: z.string().max(4000),
   deviceId: z.string().optional(),
   updatedAt: z.string().datetime(),
   deletedAt: z.string().datetime().nullable(),
 });
 const syncReport = z.object({
-  id: z.string().min(1),
+  id: z.string().uuid(),
   category: z.enum(["scam", "unsafe-job", "suspicious-link", "other"]),
-  details: z.string(),
+  details: z.string().max(4000),
   status: z.enum(["received", "reviewing"]).default("received"),
   clientId: z.string().optional(),
   updatedAt: z.string().datetime(),
@@ -99,6 +99,7 @@ router.post("/", async (req, res, next) => {
             updatedAt: new Date(item.updatedAt),
             deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
           },
+          setWhere: eq(scans.userId, req.user!.id),
         });
     }
     for (const item of body.reports) {
@@ -139,6 +140,7 @@ router.post("/", async (req, res, next) => {
             updatedAt: new Date(item.updatedAt),
             deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
           },
+          setWhere: eq(communityReports.userId, req.user!.id),
         });
     }
     res.json({
