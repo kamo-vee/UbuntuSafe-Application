@@ -68,7 +68,7 @@ For a manually started API, use `pnpm --filter @workspace/api-server run dev` wi
 
 ## Email verification and service checks
 
-For the standalone full-connected VS Code edition, start with **`VSCODE-SETUP.md`**. OpenAI, Gmail SMTP and Twilio connect directly using your private backend `.env`; no managed provider connector is needed. The downloadable source includes Gmail-ready defaults and explicit opt-in real delivery test commands.
+For the standalone full-connected VS Code edition, start with **`VSCODE-SETUP.md`**. Gemini, Gmail SMTP and Twilio connect directly using your private backend `.env`; no managed provider connector is needed. The downloadable source includes Gmail-ready defaults and explicit opt-in real delivery test commands. Gemini replaces OpenAI for scanning, OCR and transcription; no OpenAI fallback is used. Use an eligible Gemini free-tier project, respect quotas, and review Google's unpaid-service data-use terms before sending content.
 
 New registrations must verify a six-digit email code before signing in. Codes expire after 10 minutes, permit five failed attempts, and are single-use. Resends have a one-minute cooldown. If the email provider rejects delivery, the account remains pending and the app offers a resend path; it does not claim a code was sent.
 

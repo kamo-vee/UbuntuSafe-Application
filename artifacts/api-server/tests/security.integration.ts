@@ -55,20 +55,26 @@ const ai = createHttpServer(async (req, res) => {
   for await (const chunk of req) payload += chunk;
   res.setHeader("Content-Type", "application/json");
   if (failAI || noCredit) {
-    res.writeHead(noCredit ? 429 : 401);
-    res.end(JSON.stringify({ error: { message: "Fixture private provider diagnostic", code: noCredit ? "credit_balance_exhausted" : "invalid_api_key", type: noCredit ? "insufficient_quota" : "invalid_request_error" } }));
+    res.writeHead(noCredit ? 429 : 400);
+    res.end(JSON.stringify({ error: { message: "Fixture private provider diagnostic",
+      status: noCredit ? "RESOURCE_EXHAUSTED" : "INVALID_ARGUMENT", details: noCredit ? [] : [{ reason: "API_KEY_INVALID" }] } }));
     return;
   }
-  if (req.url?.endsWith("/audio/transcriptions")) {
+  assert.ok(req.url?.endsWith(":generateContent"));
+  assert.equal(req.headers["x-goog-api-key"], "fixture-only-key");
+  assert.equal(req.headers.authorization, undefined);
+  const body = JSON.parse(payload);
+  const media = body.contents[0].parts.find((part: { inlineData?: unknown }) => part.inlineData)?.inlineData;
+  if (media?.mimeType.startsWith("audio/")) {
     audioRequests++;
-    assert.ok(payload.includes("voice-note.wav"));
-    res.end(JSON.stringify({ text: emptyMedia ? "" : "Urgent, send money and your OTP now." }));
+    assert.equal(media.mimeType, "audio/wav");
+    assert.equal(Buffer.from(media.data, "base64").subarray(0, 4).toString(), "RIFF");
+    res.end(JSON.stringify({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: emptyMedia ? "" : "Urgent, send money and your OTP now." }] } }] }));
   } else {
-    const body = JSON.parse(payload);
-    const content = body.response_format
+    const content = body.generationConfig.responseSchema
       ? JSON.stringify({ status: "safe", detail: "Fixture lower-risk response, which must not downgrade deterministic danger." })
       : emptyMedia ? "" : "Urgent, send money and your OTP now.";
-    res.end(JSON.stringify({ id: "fixture", choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }] }));
+    res.end(JSON.stringify({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: content }] } }] }));
   }
 });
 const listen = (server: ReturnType<typeof createNetServer> | ReturnType<typeof createHttpServer>) =>
@@ -82,7 +88,7 @@ const child = spawn(process.execPath, ["dist/index.mjs"], {
   cwd: process.cwd(),
   env: { ...process.env, PORT: String(apiPort), SMTP_HOST: "127.0.0.1", SMTP_PORT: String(smtpPort),
     SMTP_SECURE: "false", SMTP_USER: "", SMTP_PASS: "", EMAIL_FROM: "fixture@example.test",
-    OPENAI_API_KEY: "fixture-only-key", OPENAI_BASE_URL: `http://127.0.0.1:${aiPort}/v1`,
+    GEMINI_API_KEY: "fixture-only-key", GEMINI_TEST_BASE_URL: `http://127.0.0.1:${aiPort}/v1beta`, NODE_ENV: "test",
     UBUNTUSAFE_ADMIN_EMAIL: "fixture-admin@example.test", UBUNTUSAFE_ADMIN_PASSWORD: "AdminFixtureOnly!7319",
     TWILIO_ACCOUNT_SID: "", TWILIO_AUTH_TOKEN: "", TWILIO_FROM_NUMBER: "" },
   stdio: ["ignore", "ignore", "ignore"],
@@ -175,7 +181,7 @@ try {
   assert.ok((await audio.json()).text);
   assert.equal(audioRequests, 1);
   assert.equal((await request("/audio/transcribe", token, { audioBase64: Buffer.alloc(128, 65).toString("base64"), mimeType: "audio/wav" })).status, 400);
-  check("OCR/audio request contracts, audio filename, and invalid-media rejection (fixture provider)");
+  check("Gemini inline OCR/audio contracts and invalid-media rejection (fixture provider)");
   emptyMedia = true;
   assert.equal((await request("/screen/ocr", token, { imageBase64, mimeType: "image/png" })).status, 422);
   assert.equal((await request("/audio/transcribe", token, { audioBase64: wav.toString("base64"), mimeType: "audio/wav" })).status, 422);
@@ -190,11 +196,11 @@ try {
   const creditFailure = await request("/scan", token, { kind: "message", content: "Please review this message" });
   assert.equal(creditFailure.status, 503);
   const creditMessage = (await creditFailure.json()).message;
-  assert.match(creditMessage, /credit or quota/);
+  assert.match(creditMessage, /quota/);
   assert.ok(!creditMessage.includes("Fixture private"));
   noCredit = false;
   assert.equal(Number((await pool.query("SELECT count(*) FROM scans WHERE user_id=$1", [account.user.id])).rows[0].count), 1);
-  check("AI credit exhaustion is actionable and never saves a fabricated result");
+  check("Gemini quota exhaustion is actionable and never saves a fabricated result");
   const other = await register();
   await request("/auth/email-verification/confirm", undefined, { email: other.email, code: mail.get(other.email) });
   const otherToken = await login(other.email);

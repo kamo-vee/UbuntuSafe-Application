@@ -4,20 +4,16 @@ import { fileURLToPath } from "node:url";
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), "../../..", ".env"), quiet: true });
 const { checkEmailConnection, checkSmsConnection } = await import("./lib/email.js");
 const { aiFailure, aiModels, createAIClient } = await import("./lib/ai-provider.js");
-const { default: OpenAI } = await import("openai");
 async function checkAI() {
-  if (!process.env.OPENAI_API_KEY) return { status: "not_configured" };
+  if (!process.env.GEMINI_API_KEY?.trim()) return { status: "not_configured", provider: "gemini" };
   try {
     const client = createAIClient();
-    const response = await client.chat.completions.create({
-      model: aiModels().scan, reasoning_effort: aiModels().scan.startsWith("gpt-5") ? "low" : undefined, max_completion_tokens: 8192,
-      messages: [{ role: "user", content: "Reply with OK only." }],
-    });
-    return { status: response.choices[0]?.message.content?.trim() ? "connected" : "empty_result" };
+    const text = await client.generate({ model: aiModels().scan, prompt: "Reply with OK only." });
+    return { status: text ? "connected" : "empty_result", provider: "gemini", model: aiModels().scan };
   } catch (error) {
-    return { status: "failed", httpStatus: error instanceof OpenAI.APIError ? error.status : undefined,
-      code: error instanceof OpenAI.APIError ? error.code : "connection_failed",
-      action: aiFailure(error).message };
+    const safe = aiFailure(error);
+    return { status: "failed", provider: "gemini", httpStatus: safe.upstreamStatus,
+      code: safe.code, action: safe.message };
   }
 }
 const [ai, email, sms] = await Promise.all([checkAI(), checkEmailConnection(), checkSmsConnection()]);
