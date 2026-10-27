@@ -2,7 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
-import { and, db, eq, gt, passwordResetTokens, revokedAuthTokens, ubuntuUsers } from "@workspace/db";
+import { and, db, eq, gt, isNull, passwordResetTokens, revokedAuthTokens, ubuntuUsers } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { loginUser, registerUser } from "../lib/auth.js";
 import { hashContent, signToken, verifyToken } from "../lib/crypto.js";
@@ -13,8 +14,15 @@ import {
   sendPasswordResetSms,
 } from "../lib/email.js";
 import { requireAuth } from "../middleware/auth.js";
+import { requestVerification } from "../lib/email-verification.js";
 
 const router = Router();
+const loginRateLimit = rateLimit({
+  windowMs: 15 * 60000, limit: 10, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (req) => hashContent(String(req.body?.email ?? "").trim().toLowerCase()),
+  skipSuccessfulRequests: true,
+  message: { message: "Too many password attempts for this account. Try again in 15 minutes." },
+});
 const resetRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 5,
@@ -54,9 +62,7 @@ router.post("/register", async (req, res, next) => {
         password: strongPasswordSchema,
       })
       .parse(req.body);
-    res
-      .status(201)
-      .json(await registerUser(
+    const result = await registerUser(
         body.fullName,
         body.surname,
         body.dateOfBirth,
@@ -64,7 +70,16 @@ router.post("/register", async (req, res, next) => {
         body.phone ?? null,
         body.password,
         body.language,
-      ));
+      );
+    let verificationEmailSent = false;
+    let message = "Account created. Verify your email before signing in.";
+    try {
+      await requestVerification(body.email);
+      verificationEmailSent = true;
+    } catch {
+      message = "Account created, but the email provider could not send your verification code. Your account is pending. Try resending on the verification screen.";
+    }
+    res.status(201).json({ ...result, verificationRequired: true, verificationEmailSent, message });
   } catch (error) {
     next(error);
   }
@@ -104,7 +119,7 @@ router.post("/admin-login", adminLoginRateLimit, async (req, res, next) => {
   }
 });
 
-router.post("/login", async (req, res, next) => {
+router.post("/login", loginRateLimit, async (req, res, next) => {
   try {
     const body = z
       .object({
@@ -139,9 +154,9 @@ router.post("/forgot-password", resetRateLimit, async (req, res, next) => {
     const [user] = await db
       .select({ id: ubuntuUsers.id })
       .from(ubuntuUsers)
-      .where(body.channel === "email"
+      .where(and(isNull(ubuntuUsers.deletedAt), body.channel === "email"
         ? eq(ubuntuUsers.email, destination)
-        : eq(ubuntuUsers.phone, destination))
+        : eq(ubuntuUsers.phone, destination)))
       .limit(1);
 
     if (user) {
@@ -151,6 +166,11 @@ router.post("/forgot-password", resetRateLimit, async (req, res, next) => {
         .digest("hex");
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
       await db.transaction(async (tx) => {
+        await tx.select({ id: ubuntuUsers.id }).from(ubuntuUsers).where(eq(ubuntuUsers.id, user.id)).for("update");
+        const [previous] = await tx.select().from(passwordResetTokens).where(eq(passwordResetTokens.userId, user.id)).limit(1);
+        if (previous && Date.now() - previous.createdAt.getTime() < 60000) {
+          throw Object.assign(new Error("Wait one minute before requesting another reset code."), { statusCode: 429 });
+        }
         await tx
           .delete(passwordResetTokens)
           .where(eq(passwordResetTokens.userId, user.id));
@@ -194,14 +214,14 @@ router.post("/reset-password", resetRateLimit, async (req, res, next) => {
       : phoneSchema.parse(body.destination);
     const now = new Date();
 
-    await db.transaction(async (tx) => {
+    const resetSucceeded = await db.transaction(async (tx) => {
       const [user] = await tx.select({ id: ubuntuUsers.id })
         .from(ubuntuUsers)
-        .where(body.channel === "email"
+        .where(and(isNull(ubuntuUsers.deletedAt), body.channel === "email"
           ? eq(ubuntuUsers.email, destination)
-          : eq(ubuntuUsers.phone, destination))
-        .limit(1);
-      if (!user) throw Object.assign(new Error("The reset code is invalid or expired."), { statusCode: 400 });
+          : eq(ubuntuUsers.phone, destination)))
+        .limit(1).for("update");
+      if (!user) return false;
       const tokenHash = createHash("sha256")
         .update(`${user.id}:${body.code}:${process.env.SESSION_SECRET ?? ""}`)
         .digest("hex");
@@ -210,28 +230,29 @@ router.post("/reset-password", resetRateLimit, async (req, res, next) => {
         .from(passwordResetTokens)
         .where(
           and(
-            eq(passwordResetTokens.tokenHash, tokenHash),
+            eq(passwordResetTokens.userId, user.id),
             gt(passwordResetTokens.expiresAt, now),
           ),
         )
         .limit(1)
         .for("update");
-      if (!reset) {
-        throw Object.assign(
-          new Error("This password reset link is invalid or expired."),
-          { statusCode: 400 },
-        );
+      if (!reset || reset.attempts >= 5) return false;
+      if (!securelyEqual(reset.tokenHash, tokenHash)) {
+        await tx.update(passwordResetTokens).set({ attempts: reset.attempts + 1 }).where(eq(passwordResetTokens.id, reset.id));
+        return false;
       }
 
       const passwordHash = await bcrypt.hash(body.password, 12);
       await tx
         .update(ubuntuUsers)
-        .set({ passwordHash, updatedAt: now })
+        .set({ passwordHash, updatedAt: now, sessionVersion: sql`${ubuntuUsers.sessionVersion} + 1` })
         .where(eq(ubuntuUsers.id, reset.userId));
       await tx
         .delete(passwordResetTokens)
         .where(eq(passwordResetTokens.userId, reset.userId));
+      return true;
     });
+    if (!resetSucceeded) throw Object.assign(new Error("The reset code is invalid, expired, already used, or has too many failed attempts."), { statusCode: 400 });
 
       return res.status(204).send();
   } catch (error) {

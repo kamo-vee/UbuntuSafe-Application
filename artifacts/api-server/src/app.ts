@@ -41,12 +41,15 @@ app.use(
       typeof error === "object" && error && "statusCode" in error
         ? Number(error.statusCode)
         : 500;
+    const exposed = typeof error === "object" && error && "expose" in error && error.expose === true;
+    const code = typeof error === "object" && error && "code" in error && error.code === "EMAIL_UNVERIFIED" ? error.code : undefined;
     res
-      .status(status >= 400 && status < 500 ? status : 500)
+      .status(status >= 400 && status <= 599 ? status : 500)
       .json({
-        message: status >= 400 && status < 500 && error instanceof Error
+        message: (status >= 400 && status < 500 || exposed) && error instanceof Error
           ? error.message
           : "The request could not be completed. Please try again.",
+        ...(code ? { code } : {}),
       });
   },
 );

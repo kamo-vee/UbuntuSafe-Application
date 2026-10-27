@@ -12,6 +12,9 @@ const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST ?? "localhost",
   port,
   secure: process.env.SMTP_SECURE === "true",
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
   ...(user && pass ? { auth: { user, pass } } : {}),
 });
 
@@ -53,6 +56,34 @@ export function isEmailDeliveryConfigured() {
   return Boolean(process.env.SMTP_HOST && process.env.EMAIL_FROM);
 }
 
+export async function checkEmailConnection() {
+  if (!isEmailDeliveryConfigured()) return { status: "not_configured" };
+  try {
+    await transporter.verify();
+    return { status: "connected", note: "SMTP authenticated; inbox delivery still requires a recipient test." };
+  } catch (error) {
+    const code = typeof error === "object" && error && "code" in error ? String(error.code) : "connection_failed";
+    return { status: "failed", code };
+  }
+}
+
+export async function sendEmailVerificationCode(email: string, code: string) {
+  if (!isEmailDeliveryConfigured()) {
+    throw Object.assign(new Error("Email verification delivery is not configured. Your account remains pending; try resending after the server is configured."), { statusCode: 503, expose: true });
+  }
+  try {
+    const result = await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: "Verify your UbuntuSafe email",
+      text: `Your UbuntuSafe email verification code is ${code}. It expires in 10 minutes and can be used once. If you did not register, ignore this message.`,
+    });
+    if (!result.accepted.length) throw new Error("Recipient not accepted");
+  } catch {
+    throw Object.assign(new Error("The email provider did not accept the verification message. Your account remains pending. Please try resending later."), { statusCode: 503, expose: true });
+  }
+}
+
 export async function sendPasswordResetCode(email: string, code: string) {
   if (!isEmailDeliveryConfigured()) {
     throw Object.assign(new Error("Email delivery is not configured."), { statusCode: 503 });
@@ -77,6 +108,7 @@ export async function sendPasswordResetSms(phone: string, code: string) {
     throw Object.assign(new Error("SMS delivery is not configured."), { statusCode: 503 });
   }
   const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+    signal: AbortSignal.timeout(15000),
     method: "POST",
     headers: {
       Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
@@ -87,6 +119,23 @@ export async function sendPasswordResetSms(phone: string, code: string) {
   if (!response.ok) {
     throw Object.assign(new Error("SMS provider could not deliver the reset code."), { statusCode: 502 });
   }
+}
+
+export async function checkSmsConnection() {
+  if (!isSmsDeliveryConfigured()) return { status: "not_configured" };
+  const sid = process.env.TWILIO_ACCOUNT_SID!;
+  const token = process.env.TWILIO_AUTH_TOKEN!;
+  try {
+    const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/IncomingPhoneNumbers.json?${new URLSearchParams({ PhoneNumber: process.env.TWILIO_FROM_NUMBER! })}`, {
+      headers: { Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}` },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) return { status: "failed", httpStatus: response.status };
+    const data = await response.json() as { incoming_phone_numbers?: { capabilities?: { sms?: boolean } }[] };
+    return data.incoming_phone_numbers?.some((number) => number.capabilities?.sms)
+      ? { status: "sender_validated", note: "Authentication and SMS-capable sender confirmed; recipient delivery not tested." }
+      : { status: "sender_unavailable", note: "Configured sender was not confirmed as an SMS-capable number on this account." };
+  } catch { return { status: "connection_failed" }; }
 }
 
 export async function sendUserReportEmail(email: string, report: string) {

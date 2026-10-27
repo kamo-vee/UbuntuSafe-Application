@@ -52,6 +52,7 @@ export async function registerUser(
       phone,
       passwordHash,
       language,
+      emailVerificationRequired: true,
     })
     .returning();
   return issueUser(user);
@@ -77,6 +78,11 @@ export async function loginUser(email: string, password: string) {
     throw Object.assign(new Error("Incorrect password. Try again or reset it."), {
       statusCode: 401,
     });
+  if (user.emailVerificationRequired && !user.emailVerifiedAt) {
+    throw Object.assign(new Error("Verify your email before signing in. You can request a new verification code."), {
+      statusCode: 403, code: "EMAIL_UNVERIFIED",
+    });
+  }
   await db.update(ubuntuUsers).set({ lastSignedInAt: new Date() }).where(eq(ubuntuUsers.id, user.id));
   return issueUser(user);
 }
@@ -93,6 +99,7 @@ function issueUser(user: typeof ubuntuUsers.$inferSelect) {
     token: signToken({
       userId: user.id,
       email: user.email,
+      sessionVersion: user.sessionVersion,
       exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
     }),
     user: authUser,
@@ -103,6 +110,6 @@ export function bearerUser(authorization?: string) {
   if (!authorization?.startsWith("Bearer ")) return null;
   const token = verifyToken(authorization.slice(7));
   return token
-    ? { id: token.userId, email: token.email, role: token.role, exp: token.exp }
+    ? { id: token.userId, email: token.email, role: token.role, exp: token.exp, sessionVersion: token.sessionVersion ?? 0 }
     : null;
 }

@@ -16,6 +16,7 @@ export function signToken(payload: {
   email: string;
   exp: number;
   role?: "admin";
+  sessionVersion?: number;
 }) {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const signature = createHmac("sha256", signingSecret)
@@ -26,8 +27,10 @@ export function signToken(payload: {
 
 export function verifyToken(
   token: string,
-): { userId: string; email: string; exp: number; role?: "admin" } | null {
-  const [body, signature] = token.split(".");
+): { userId: string; email: string; exp: number; role?: "admin"; sessionVersion?: number } | null {
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [body, signature] = parts;
   if (!body || !signature) return null;
   const expected = createHmac("sha256", signingSecret).update(body).digest();
   const received = Buffer.from(signature, "base64url");
@@ -44,11 +47,13 @@ export function verifyToken(
       email: string;
       exp: number;
       role?: "admin";
+      sessionVersion?: number;
     };
     if (
       typeof parsed.userId !== "string" ||
       typeof parsed.email !== "string" ||
       typeof parsed.exp !== "number" ||
+      (parsed.sessionVersion !== undefined && (!Number.isInteger(parsed.sessionVersion) || parsed.sessionVersion < 0)) ||
       (parsed.role !== undefined && parsed.role !== "admin")
     ) return null;
     return parsed.exp > Date.now() ? parsed : null;

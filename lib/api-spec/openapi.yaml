@@ -11,6 +11,48 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /auth/email-verification/request:
+    post:
+      operationId: requestEmailVerification
+      summary: Send or resend an email verification code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailVerificationRequest"
+      responses:
+        "202":
+          description: Request processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationStatus"
+        "429":
+          description: Too many requests
+        "503":
+          description: Email provider unavailable
+  /auth/email-verification/confirm:
+    post:
+      operationId: confirmEmailVerification
+      summary: Verify a single-use email code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailVerificationConfirmation"
+      responses:
+        "200":
+          description: Email verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationStatus"
+        "400":
+          description: Invalid, expired, or exhausted code
+        "429":
+          description: Too many attempts
   /healthz:
     get:
       operationId: healthCheck
@@ -26,6 +68,31 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    EmailVerificationRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 200
+    EmailVerificationConfirmation:
+      type: object
+      required: [email, code]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 200
+        code:
+          type: string
+          pattern: '^\d{6}$'
+    VerificationStatus:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
     HealthStatus:
       type: object
       properties:

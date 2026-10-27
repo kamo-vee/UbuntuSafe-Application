@@ -5,6 +5,8 @@ import {
   timestamp,
   uuid,
   index,
+  boolean,
+  integer,
 } from "drizzle-orm/pg-core";
 export const scanKindEnum = pgEnum("scan_kind", [
   "message",
@@ -44,6 +46,9 @@ export const ubuntuUsers = pgTable("ubuntu_users", {
   dateOfBirth: text("date_of_birth"),
   lastSignedInAt: timestamp("last_signed_in_at", { withTimezone: true }),
   email: text("email").notNull().unique(),
+  emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+  emailVerificationRequired: boolean("email_verification_required").notNull().default(false),
+  sessionVersion: integer("session_version").notNull().default(0),
   phone: text("phone"),
   passwordHash: text("password_hash"),
   language: text("language").notNull().default("English"),
@@ -62,6 +67,7 @@ export const passwordResetTokens = pgTable(
       .references(() => ubuntuUsers.id, { onDelete: "cascade" })
       .notNull(),
     tokenHash: text("token_hash").notNull().unique(),
+    attempts: integer("attempts").notNull().default(0),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -81,6 +87,14 @@ export const revokedAuthTokens = pgTable(
   },
   (table) => [index("revoked_auth_tokens_expiry_idx").on(table.expiresAt)],
 );
+
+export const emailVerificationTokens = pgTable("email_verification_tokens", {
+  userId: uuid("user_id").primaryKey().references(() => ubuntuUsers.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const scans = pgTable(
   "scans",

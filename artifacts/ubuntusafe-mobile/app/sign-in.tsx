@@ -39,6 +39,9 @@ export default function SignInScreen() {
       await signIn(email, password);
       router.replace("/(tabs)");
     } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "EMAIL_UNVERIFIED") {
+        router.push({ pathname: "/verify-email", params: { email: normalizedEmail.toLowerCase() } });
+      }
       setError(
         error instanceof Error
           ? error.message

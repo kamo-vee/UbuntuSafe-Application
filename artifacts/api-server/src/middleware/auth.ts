@@ -53,6 +53,9 @@ export async function requireAuth(
       id: ubuntuUsers.id,
       email: ubuntuUsers.email,
       fullName: ubuntuUsers.fullName,
+      sessionVersion: ubuntuUsers.sessionVersion,
+      emailVerifiedAt: ubuntuUsers.emailVerifiedAt,
+      emailVerificationRequired: ubuntuUsers.emailVerificationRequired,
     })
     .from(ubuntuUsers)
     .where(and(eq(ubuntuUsers.id, tokenUser.id), isNull(ubuntuUsers.deletedAt)))
@@ -61,6 +64,14 @@ export async function requireAuth(
     res.status(401).json({ message: "Account not found." });
     return;
   }
-  req.user = user;
+  if (user.sessionVersion !== tokenUser.sessionVersion) {
+    res.status(401).json({ message: "This session has ended. Sign in again." });
+    return;
+  }
+  if (user.emailVerificationRequired && !user.emailVerifiedAt && req.path !== "/logout") {
+    res.status(403).json({ message: "Verify your email before continuing.", code: "EMAIL_UNVERIFIED" });
+    return;
+  }
+  req.user = { id: user.id, email: user.email, fullName: user.fullName };
   next();
 }

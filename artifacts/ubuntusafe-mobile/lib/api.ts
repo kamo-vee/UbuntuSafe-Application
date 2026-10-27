@@ -2,6 +2,7 @@ import * as SecureStore from "expo-secure-store";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
+import { setBaseUrl, setAuthTokenGetter as setGeneratedAuthTokenGetter } from "@workspace/api-client-react";
 
 const TOKEN_KEY = "ubuntusafe.auth.token";
 
@@ -53,6 +54,8 @@ function resolveApiUrl() {
 }
 
 const API_URL = resolveApiUrl();
+setBaseUrl(API_URL || null);
+setGeneratedAuthTokenGetter(() => tokenGetter());
 
 export type ApiHealthResult = {
   apiUrl: string;
@@ -168,7 +171,8 @@ export async function apiRequest<T>(
   const token = await tokenGetter();
   const controller = new AbortController();
   const isAnalysis = ["/scan", "/audio/transcribe", "/screen/ocr"].includes(path);
-  const timeout = setTimeout(() => controller.abort(), isAnalysis ? 60000 : 5000);
+  const isEmailRequest = path === "/auth/register" || path === "/auth/forgot-password";
+  const timeout = setTimeout(() => controller.abort(), isAnalysis ? 60000 : isEmailRequest ? 30000 : 5000);
   let response: Response;
   try {
     try {
@@ -203,11 +207,13 @@ export async function apiRequest<T>(
     clearTimeout(timeout);
   }
   if (!response.ok) {
+    const body = await response.json().catch(() => null);
     const error = new Error(
-      (await response.json().catch(() => null))?.message ??
+      body?.message ??
         `Request failed (${response.status})`,
-    ) as Error & { status: number };
+    ) as Error & { status: number; code?: string };
     error.status = response.status;
+    error.code = body?.code;
     throw error;
   }
   return response.status === 204

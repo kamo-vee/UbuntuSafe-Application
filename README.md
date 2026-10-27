@@ -66,6 +66,28 @@ For a manually started API, use `pnpm --filter @workspace/api-server run dev` wi
 - Android Studio is optional for an Android emulator; it is not needed for a physical phone using Expo Go.
 - Keep `DATABASE_URL`, `SESSION_SECRET`, SMTP settings, provider keys, and separate administrator credentials private in your root `.env` locally or the workspace's secrets settings.
 
+## Email verification and service checks
+
+New registrations must verify a six-digit email code before signing in. Codes expire after 10 minutes, permit five failed attempts, and are single-use. Resends have a one-minute cooldown. If the email provider rejects delivery, the account remains pending and the app offers a resend path; it does not claim a code was sent.
+
+The additive migration preserves access for pre-existing accounts without falsely marking their email addresses as verified. It also adds session versions so a successful password reset invalidates old sessions.
+
+Check provider access without printing credentials or sending to an arbitrary recipient:
+
+```sh
+pnpm --filter @workspace/api-server run services:check
+```
+
+This performs a small real AI request, checks SMTP connectivity/authentication, and checks the SMS account/sender. SMTP connectivity and SMS sender validation are not proof of recipient delivery.
+
+Run the controlled integration suite against a **development database only**:
+
+```sh
+pnpm --filter @workspace/api-server run test:integration
+```
+
+The suite uses isolated SMTP/AI fixture servers, creates only synthetic accounts, and cleans up its own records. These tests do not certify live third-party delivery. See `VALIDATION-REPORT.md` for the latest results and remaining blockers.
+
 ## Check the connection in the app
 
 Before signing in, open the **API connection** check on the sign-in screen (it is also available in Settings). It shows the app's configured API URL and tests `/api/healthz`:

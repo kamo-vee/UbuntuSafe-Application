@@ -36,6 +36,14 @@ export default function CreateAccountScreen() {
     setBusy(true);
     try {
       const created = await register(fullName.trim(), surname.trim(), dateOfBirth, email.trim(), phone.trim() || null, password, false);
+      if (created.verificationRequired) {
+        await signOut();
+        router.replace({
+          pathname: "/verify-email",
+          params: { email: email.trim().toLowerCase(), sent: created.verificationEmailSent ? "1" : "0" },
+        });
+        return;
+      }
       if (useBiometrics) {
         try { await enableBiometrics(true, created); }
         catch { Alert.alert("Account created", "Biometrics could not be enabled on this device. You can sign in with your password."); }

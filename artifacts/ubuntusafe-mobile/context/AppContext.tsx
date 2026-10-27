@@ -25,6 +25,8 @@ export type AppUser = {
   phone?: string | null;
   language: Language;
   biometricsEnabled: boolean;
+  verificationRequired?: boolean;
+  verificationEmailSent?: boolean;
 };
 export type LocalActivity = {
   id: string;
@@ -34,6 +36,8 @@ export type LocalActivity = {
 };
 type ThemeMode = "light" | "dark";
 type AuthResponse = {
+  verificationRequired?: boolean;
+  verificationEmailSent?: boolean;
   token: string;
   user: { id: string; fullName: string; email: string; surname?: string; dateOfBirth?: string | null; phone?: string | null };
 };
@@ -211,8 +215,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         language,
       }),
     });
+    const nextUser = {
+      ...response.user, language, biometricsEnabled,
+      verificationRequired: response.verificationRequired,
+      verificationEmailSent: response.verificationEmailSent,
+    };
+    // A pending registration must not establish an authenticated dashboard session.
+    if (response.verificationRequired) return nextUser;
     await saveAuthToken(response.token);
-    const nextUser = { ...response.user, language, biometricsEnabled };
     setUser(nextUser);
     setBiometricUser(null);
     setBiometricAvailable(false);

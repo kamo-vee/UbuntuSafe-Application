@@ -63,10 +63,35 @@ function toScriptString(value) {
     .replaceAll('&', '\\u0026');
 }
 
-function serveManifest(platform, res) {
-  const manifestPath = path.join(STATIC_ROOT, platform, 'manifest.json');
+// Index trusted build outputs once. Request data is never passed to a filesystem read.
+// Symlinks and dotfiles are deliberately not indexed, including symlinked directories.
+function loadStaticAssets(root) {
+  const assets = new Map();
+  if (!fs.existsSync(root) || fs.lstatSync(root).isSymbolicLink()) return assets;
+  const visit = (directory, prefix = '') => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name.startsWith('.') || entry.isSymbolicLink()) continue;
+      const filename = path.join(directory, entry.name);
+      const key = `${prefix}/${entry.name}`;
+      if (entry.isDirectory()) visit(filename, key);
+      else if (entry.isFile()) {
+        const extension = path.extname(entry.name).toLowerCase();
+        if (extension && !MIME_TYPES[extension] && !['.bundle', '.webp', '.avif', '.wasm', '.mp3', '.wav', '.m4a'].includes(extension)) continue;
+        assets.set(key, {
+          content: fs.readFileSync(filename),
+          contentType: MIME_TYPES[extension] || (extension === '.bundle' ? 'application/javascript' : 'application/octet-stream'),
+        });
+      }
+    }
+  };
+  visit(root);
+  return assets;
+}
 
-  if (!fs.existsSync(manifestPath)) {
+function serveManifest(platform, res, assets) {
+  const manifest = platform === 'ios' ? assets.get('/ios/manifest.json')
+    : platform === 'android' ? assets.get('/android/manifest.json') : undefined;
+  if (!manifest) {
     res.writeHead(404, { 'content-type': 'application/json' });
     res.end(
       JSON.stringify({ error: `Manifest not found for platform: ${platform}` }),
@@ -74,24 +99,28 @@ function serveManifest(platform, res) {
     return;
   }
 
-  const manifest = fs.readFileSync(manifestPath, 'utf-8');
   res.writeHead(200, {
     'content-type': 'application/json',
     'expo-protocol-version': '1',
     'expo-sfv-version': '0',
   });
-  res.end(manifest);
+  res.end(manifest.content);
 }
 
 function serveLandingPage(req, res, landingPageTemplate, appName) {
   const forwardedProto = req.headers['x-forwarded-proto'];
-  const protocol = forwardedProto || 'https';
+  const protocol = forwardedProto === 'http' ? 'http' : 'https';
   const host = req.headers['x-forwarded-host'] || req.headers['host'];
+  if (typeof host !== 'string' || !/^[a-zA-Z0-9.-]+(?::\d{1,5})?$/.test(host)) {
+    res.writeHead(400);
+    res.end('Bad Request');
+    return;
+  }
   const baseUrl = `${protocol}://${host}`;
   const expsUrl = `exps://${host}${basePath}`;
 
   const html = landingPageTemplate
-    .replace(/BASE_URL_PLACEHOLDER/g, baseUrl)
+    .replace(/BASE_URL_PLACEHOLDER/g, escapeHtml(baseUrl))
     .replace(/EXPS_URL_ATTRIBUTE_PLACEHOLDER/g, escapeHtml(expsUrl))
     .replace(/EXPS_URL_JSON_PLACEHOLDER/g, toScriptString(expsUrl))
     .replace(/APP_NAME_PLACEHOLDER/g, escapeHtml(appName));
@@ -100,7 +129,7 @@ function serveLandingPage(req, res, landingPageTemplate, appName) {
   res.end(html);
 }
 
-function serveStaticFile(urlPath, res) {
+function serveStaticFile(urlPath, res, assets) {
   let decodedPath;
   try {
     decodedPath = decodeURIComponent(urlPath);
@@ -109,51 +138,46 @@ function serveStaticFile(urlPath, res) {
     res.end('Bad Request');
     return;
   }
-  if (decodedPath.includes('\0')) {
+  if (decodedPath.includes('\0') || decodedPath.includes('\\')) {
     res.writeHead(400);
     res.end('Bad Request');
     return;
   }
-  const filePath = path.resolve(STATIC_ROOT, `.${path.sep}${decodedPath}`);
-  const relativePath = path.relative(STATIC_ROOT, filePath);
-  if (
-    relativePath === '..' ||
-    relativePath.startsWith(`..${path.sep}`) ||
-    path.isAbsolute(relativePath)
-  ) {
+  if (decodedPath.split('/').some((part) => part === '..' || part === '.')) {
     res.writeHead(403);
     res.end('Forbidden');
     return;
   }
 
-  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+  const asset = assets.get(decodedPath);
+  if (!asset) {
     res.writeHead(404);
     res.end('Not Found');
     return;
   }
 
-  const ext = path.extname(filePath).toLowerCase();
-  const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-  const content = fs.readFileSync(filePath);
-  res.writeHead(200, { 'content-type': contentType });
-  res.end(content);
+  res.writeHead(200, { 'content-type': asset.contentType, 'x-content-type-options': 'nosniff' });
+  res.end(asset.content);
 }
 
-const landingPageTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf-8');
+function createAppServer({ root = STATIC_ROOT, templatePath = TEMPLATE_PATH } = {}) {
+const assets = loadStaticAssets(root);
+const landingPageTemplate = fs.readFileSync(templatePath, 'utf-8');
 const appName = getAppName();
-
-const server = http.createServer((req, res) => {
-  const url = new URL(req.url || '/', `http://${req.headers.host}`);
+return http.createServer((req, res) => {
+  let url;
+  try { url = new URL(req.url || '/', 'http://localhost'); }
+  catch { res.writeHead(400); res.end('Bad Request'); return; }
   let pathname = url.pathname;
 
-  if (basePath && pathname.startsWith(basePath)) {
+  if (basePath && (pathname === basePath || pathname.startsWith(`${basePath}/`))) {
     pathname = pathname.slice(basePath.length) || '/';
   }
 
   if (pathname === '/' || pathname === '/manifest') {
     const platform = req.headers['expo-platform'];
     if (platform === 'ios' || platform === 'android') {
-      return serveManifest(platform, res);
+      return serveManifest(platform, res, assets);
     }
 
     if (pathname === '/') {
@@ -161,10 +185,14 @@ const server = http.createServer((req, res) => {
     }
   }
 
-  serveStaticFile(pathname, res);
+  serveStaticFile(pathname, res, assets);
 });
+}
 
+if (require.main === module) {
 const port = parseInt(process.env.PORT || '3000', 10);
-server.listen(port, '0.0.0.0', () => {
+createAppServer().listen(port, '0.0.0.0', () => {
   console.log(`Serving static Expo build on port ${port}`);
 });
+}
+module.exports = { createAppServer, loadStaticAssets };

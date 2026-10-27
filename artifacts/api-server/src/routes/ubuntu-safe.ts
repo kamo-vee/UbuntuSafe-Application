@@ -6,6 +6,8 @@ import { sanitizeText } from "../lib/crypto.js";
 import { sendUserReportEmail } from "../lib/email.js";
 import OpenAI, { toFile } from "openai";
 
+import { decodeMedia } from "../lib/media-validation.js";
+
 const router = Router();
 router.use(requireAuth);
 
@@ -35,7 +37,7 @@ function getOpenAI(res: Response) {
     res.status(503).json({ message: "Voice and screen analysis are not configured yet." });
     return null;
   }
-  return new OpenAI({ apiKey });
+  return new OpenAI({ apiKey, timeout: 45000, maxRetries: 0 });
 }
 
 type ScanKind = z.infer<typeof scanBody>["kind"];
@@ -322,6 +324,7 @@ router.post("/admin/reports/email", async (req, res, next) => {
 router.post("/audio/transcribe", async (req, res, next) => {
   try {
     const body = audioBody.parse(req.body);
+    const audio = decodeMedia(body.audioBase64, body.mimeType);
     const client = getOpenAI(res);
     if (!client) return;
     const extension = {
@@ -329,7 +332,7 @@ router.post("/audio/transcribe", async (req, res, next) => {
       "audio/wav": "wav", "audio/webm": "webm",
     }[body.mimeType];
     const transcript = await client.audio.transcriptions.create({
-      file: await toFile(Buffer.from(body.audioBase64, "base64"), `voice-note.${extension}`, {
+      file: await toFile(audio, `voice-note.${extension}`, {
         type: body.mimeType,
       }),
       model: "gpt-4o-mini-transcribe",
@@ -343,6 +346,7 @@ router.post("/audio/transcribe", async (req, res, next) => {
 router.post("/screen/ocr", async (req, res, next) => {
   try {
     const body = screenBody.parse(req.body);
+    decodeMedia(body.imageBase64, body.mimeType);
     const client = getOpenAI(res);
     if (!client) return;
     const result = await client.chat.completions.create({
