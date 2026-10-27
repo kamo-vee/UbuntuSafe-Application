@@ -4,7 +4,8 @@ import { and, communityFeedback, communityReports, db, desc, eq, gte, isNull, sc
 import { requireAuth } from "../middleware/auth.js";
 import { sanitizeText } from "../lib/crypto.js";
 import { sendUserReportEmail } from "../lib/email.js";
-import OpenAI, { toFile } from "openai";
+import { toFile } from "openai";
+import { aiFailure, aiModels, createAIClient, ProviderError } from "../lib/ai-provider.js";
 
 import { decodeMedia } from "../lib/media-validation.js";
 
@@ -30,15 +31,6 @@ const screenBody = z.object({
   imageBase64: z.string().min(100).max(8_000_000),
   mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
 });
-
-function getOpenAI(res: Response) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    res.status(503).json({ message: "Voice and screen analysis are not configured yet." });
-    return null;
-  }
-  return new OpenAI({ apiKey, timeout: 45000, maxRetries: 0 });
-}
 
 type ScanKind = z.infer<typeof scanBody>["kind"];
 
@@ -325,8 +317,7 @@ router.post("/audio/transcribe", async (req, res, next) => {
   try {
     const body = audioBody.parse(req.body);
     const audio = decodeMedia(body.audioBase64, body.mimeType);
-    const client = getOpenAI(res);
-    if (!client) return;
+    const client = createAIClient();
     const extension = {
       "audio/mp4": "m4a", "audio/m4a": "m4a", "audio/mpeg": "mp3",
       "audio/wav": "wav", "audio/webm": "webm",
@@ -335,9 +326,11 @@ router.post("/audio/transcribe", async (req, res, next) => {
       file: await toFile(audio, `voice-note.${extension}`, {
         type: body.mimeType,
       }),
-      model: "gpt-4o-mini-transcribe",
-    });
-    return res.json({ text: transcript.text });
+      model: aiModels().transcription,
+    }).catch((error) => { throw aiFailure(error); });
+    const text = transcript.text?.trim();
+    if (!text) throw new ProviderError("No speech could be transcribed. Try a clearer voice note. No result was saved.", "AI_EMPTY_TRANSCRIPT", 422);
+    return res.json({ text });
   } catch (error) {
     return next(error);
   }
@@ -347,11 +340,11 @@ router.post("/screen/ocr", async (req, res, next) => {
   try {
     const body = screenBody.parse(req.body);
     decodeMedia(body.imageBase64, body.mimeType);
-    const client = getOpenAI(res);
-    if (!client) return;
+    const client = createAIClient();
     const result = await client.chat.completions.create({
-      model: "gpt-5-mini",
-      max_completion_tokens: 2000,
+      model: aiModels().vision,
+      max_completion_tokens: 8192,
+      reasoning_effort: aiModels().vision.startsWith("gpt-5") ? "low" : undefined,
       messages: [{
         role: "user",
         content: [
@@ -359,8 +352,10 @@ router.post("/screen/ocr", async (req, res, next) => {
           { type: "image_url", image_url: { url: `data:${body.mimeType};base64,${body.imageBase64}` } },
         ],
       }],
-    });
-    return res.json({ text: result.choices[0]?.message.content?.toString().trim() ?? "" });
+    }).catch((error) => { throw aiFailure(error); });
+    const text = result.choices[0]?.message.content?.toString().trim();
+    if (!text) throw new ProviderError("No readable text was found. Choose a clearer screenshot. No result was saved.", "AI_EMPTY_OCR", 422);
+    return res.json({ text });
   } catch (error) {
     return next(error);
   }
@@ -374,13 +369,13 @@ router.post("/scan", async (req, res, next) => {
     let status = rulesStatus;
     let analysisMode: "ai" | "rules" = "rules";
     let aiDetail: string | undefined;
-    if (process.env.OPENAI_API_KEY) {
+    {
       try {
-      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 45000, maxRetries: 0 });
+      const client = createAIClient();
       const review = await client.chat.completions.create({
-        model: "gpt-5-mini",
-        max_completion_tokens: 2000,
-        reasoning_effort: "low",
+        model: aiModels().scan,
+        max_completion_tokens: 8192,
+        reasoning_effort: aiModels().scan.startsWith("gpt-5") ? "low" : undefined,
         response_format: { type: "json_object" },
         messages: [
           {
@@ -401,13 +396,8 @@ router.post("/scan", async (req, res, next) => {
       aiDetail = status === parsed.status ? parsed.detail : undefined;
       analysisMode = "ai";
       } catch (error) {
-        console.warn("AI scan did not complete", {
-          type: error instanceof Error ? error.name : "unknown",
-          status: error instanceof OpenAI.APIError ? error.status : undefined,
-          code: error instanceof OpenAI.APIError ? error.code : undefined,
-        });
         return res.status(503).json({
-          message: "The AI service could not complete this scan. No result was saved. Check the AI provider configuration or try again.",
+          message: aiFailure(error).message,
         });
       }
     }

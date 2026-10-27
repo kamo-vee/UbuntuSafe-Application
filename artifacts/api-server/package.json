@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "services:check": "tsx src/validate-services.ts",
+    "services:test-delivery": "tsx src/test-delivery.ts",
+    "test:providers": "tsx --test tests/provider-configuration.test.ts",
     "test:integration": "pnpm run build && tsx tests/security.integration.ts",
     "dev": "pnpm run build && pnpm run start",
     "build": "node ./build.mjs",

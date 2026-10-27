@@ -16,6 +16,9 @@ const mail = new Map<string, string>();
 const sockets = new Set<Socket>();
 let rejectMail = false;
 let failAI = false;
+let noCredit = false;
+let emptyMedia = false;
+let acceptedTestEmails = 0;
 let audioRequests = 0;
 const smtp = createNetServer((socket) => {
   sockets.add(socket);
@@ -30,6 +33,7 @@ const smtp = createNetServer((socket) => {
       pending = pending.slice(end + 2);
       if (inData) {
         if (line === ".") {
+          if (data.includes("UbuntuSafe email connection test.")) acceptedTestEmails++;
           const code = data.replace(/=\r?\n/g, "").match(/(?:verification code is|reset code is) (\d{6})/)?.[1];
           if (code) mail.set(recipient, code);
           inData = false; data = "";
@@ -50,20 +54,20 @@ const ai = createHttpServer(async (req, res) => {
   let payload = "";
   for await (const chunk of req) payload += chunk;
   res.setHeader("Content-Type", "application/json");
-  if (failAI) {
-    res.writeHead(401);
-    res.end(JSON.stringify({ error: { message: "Fixture rejected credential", code: "invalid_api_key", type: "invalid_request_error" } }));
+  if (failAI || noCredit) {
+    res.writeHead(noCredit ? 429 : 401);
+    res.end(JSON.stringify({ error: { message: "Fixture private provider diagnostic", code: noCredit ? "credit_balance_exhausted" : "invalid_api_key", type: noCredit ? "insufficient_quota" : "invalid_request_error" } }));
     return;
   }
   if (req.url?.endsWith("/audio/transcriptions")) {
     audioRequests++;
     assert.ok(payload.includes("voice-note.wav"));
-    res.end(JSON.stringify({ text: "Urgent, send money and your OTP now." }));
+    res.end(JSON.stringify({ text: emptyMedia ? "" : "Urgent, send money and your OTP now." }));
   } else {
     const body = JSON.parse(payload);
     const content = body.response_format
       ? JSON.stringify({ status: "safe", detail: "Fixture lower-risk response, which must not downgrade deterministic danger." })
-      : "Urgent, send money and your OTP now.";
+      : emptyMedia ? "" : "Urgent, send money and your OTP now.";
     res.end(JSON.stringify({ id: "fixture", choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }] }));
   }
 });
@@ -90,6 +94,21 @@ const request = (path: string, token?: string, body?: unknown, method = body ? "
     ...(body ? { body: JSON.stringify(body) } : {}) });
 let passed = 0;
 const check = (name: string) => { passed++; console.log(`PASS ${name}`); };
+function deliveryCli(args: string[]) {
+  return new Promise<{ status: number | null; output: string }>((done, reject) => {
+    const task = spawn(process.execPath, ["--import", "tsx", "src/test-delivery.ts", ...args], {
+      cwd: process.cwd(),
+      env: { ...process.env, SMTP_HOST: "127.0.0.1", SMTP_PORT: String(smtpPort), SMTP_SECURE: "false",
+        SMTP_USER: "", SMTP_PASS: "", EMAIL_FROM: "fixture@example.test" },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let output = "";
+    task.stdout.on("data", (chunk) => { output += chunk; });
+    task.stderr.on("data", (chunk) => { output += chunk; });
+    task.once("error", reject);
+    task.once("close", (status) => done({ status, output }));
+  });
+}
 async function register() {
   const email = `fixture-${randomUUID()}@example.test`;
   const response = await request("/auth/register", undefined, { fullName: "Fixture", surname: "Check", dateOfBirth: "1995-01-01", email, password });
@@ -110,6 +129,15 @@ try {
     await new Promise((done) => setTimeout(done, 100));
   }
   assert.equal((await fetch(base + "/healthz")).status, 200);
+  const deniedDelivery = await deliveryCli(["--email-to", "fixture@example.test"]);
+  assert.equal(deniedDelivery.status, 1);
+  assert.equal(acceptedTestEmails, 0);
+  const acceptedDelivery = await deliveryCli(["--confirm-send", "--email-to", "fixture@example.test"]);
+  assert.equal(acceptedDelivery.status, 0, acceptedDelivery.output);
+  assert.match(acceptedDelivery.output, /provider_accepted/);
+  assert.match(acceptedDelivery.output, /not proof of delivery/);
+  assert.equal(acceptedTestEmails, 1);
+  check("standalone email-test command requires consent and reports provider acceptance, not claimed delivery");
   const account = await register();
   assert.equal(account.verificationRequired, true);
   assert.equal(account.verificationEmailSent, true);
@@ -148,11 +176,25 @@ try {
   assert.equal(audioRequests, 1);
   assert.equal((await request("/audio/transcribe", token, { audioBase64: Buffer.alloc(128, 65).toString("base64"), mimeType: "audio/wav" })).status, 400);
   check("OCR/audio request contracts, audio filename, and invalid-media rejection (fixture provider)");
+  emptyMedia = true;
+  assert.equal((await request("/screen/ocr", token, { imageBase64, mimeType: "image/png" })).status, 422);
+  assert.equal((await request("/audio/transcribe", token, { audioBase64: wav.toString("base64"), mimeType: "audio/wav" })).status, 422);
+  emptyMedia = false;
+  check("empty OCR and transcription return explicit failures instead of fake extraction success");
   failAI = true;
   assert.equal((await request("/scan", token, { kind: "message", content: "Review this message please" })).status, 503);
   failAI = false;
   assert.equal(Number((await pool.query("SELECT count(*) FROM scans WHERE user_id=$1", [account.user.id])).rows[0].count), 1);
   check("provider failure is explicit and does not save a fake result");
+  noCredit = true;
+  const creditFailure = await request("/scan", token, { kind: "message", content: "Please review this message" });
+  assert.equal(creditFailure.status, 503);
+  const creditMessage = (await creditFailure.json()).message;
+  assert.match(creditMessage, /credit or quota/);
+  assert.ok(!creditMessage.includes("Fixture private"));
+  noCredit = false;
+  assert.equal(Number((await pool.query("SELECT count(*) FROM scans WHERE user_id=$1", [account.user.id])).rows[0].count), 1);
+  check("AI credit exhaustion is actionable and never saves a fabricated result");
   const other = await register();
   await request("/auth/email-verification/confirm", undefined, { email: other.email, code: mail.get(other.email) });
   const otherToken = await login(other.email);
