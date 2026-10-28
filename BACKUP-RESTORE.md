@@ -59,6 +59,8 @@ Completed backup files older than 30 days are pruned after a new backup; at leas
 
 Users: **Settings → Backups and restore**. Administrators: **Admin dashboard → Backups and restore**.
 
+The admin dashboard also shows a live **Backup information** summary: encryption/automatic-backup setup, latest completed database backup and size, completed backup count, schedule, retention and the recoverable records currently listed. It refreshes when the dashboard gains focus, every minute while open, or when Refresh backup status is pressed. View backups and restore opens the detailed backup list and recovery controls. Setup required is not reported as a successful backup; private keys and storage paths are never displayed.
+
 Select a deleted record, press Restore, then Confirm restore. For personal snapshots, Restore missing brings back missing/deleted records only. Active records and passwords are not overwritten by personal snapshots. The app synchronizes before/after user restores; offline edits must sync first.
 
 A deleted account cannot sign in to restore itself: an administrator must recover it. Users on a new phone can sign in and sync existing server records without restoring the whole database.
