@@ -166,7 +166,7 @@ router.get("/dashboard", async (req, res, next) => {
     const rows = await db
       .select({ kind: scans.kind, status: scans.status })
       .from(scans)
-      .where(and(eq(scans.userId, req.user!.id), gte(scans.createdAt, since)));
+      .where(and(eq(scans.userId, req.user!.id), isNull(scans.deletedAt), gte(scans.createdAt, since)));
     const safe = rows.filter((row) => row.status === "safe").length;
     res.json({
       scansThisWeek: rows.length,
@@ -192,7 +192,7 @@ router.get("/activities", async (req, res, next) => {
         createdAt: scans.createdAt,
       })
       .from(scans)
-      .where(eq(scans.userId, req.user!.id))
+      .where(and(eq(scans.userId, req.user!.id), isNull(scans.deletedAt)))
       .orderBy(desc(scans.createdAt))
       .limit(50);
     res.json(

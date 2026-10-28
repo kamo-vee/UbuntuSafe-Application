@@ -11,6 +11,56 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /backup:
+    get:
+      operationId: getBackupOverview
+      summary: View authorized backup status and recoverable records
+      responses:
+        "200":
+          description: Role-scoped recovery overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupOverview"
+  /backup/database:
+    post:
+      operationId: createDatabaseBackup
+      summary: Administrator creates an encrypted full database backup
+      responses:
+        "201":
+          description: Backup completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupFile"
+  /backup/snapshot:
+    post:
+      operationId: createPersonalSnapshot
+      summary: Save an encrypted snapshot of the signed-in user's records
+      responses:
+        "201":
+          description: Snapshot completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupFile"
+  /backup/restore:
+    post:
+      operationId: restoreBackupRecord
+      summary: Restore a deleted record or missing personal snapshot records
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecoveryInput"
+      responses:
+        "200":
+          description: Restore result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryResult"
   /auth/email-verification/request:
     post:
       operationId: requestEmailVerification
@@ -68,6 +118,53 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    BackupFile:
+      type: object
+      required: [id, createdAt, bytes]
+      properties:
+        id: { type: string }
+        createdAt: { type: string }
+        bytes: { type: number }
+    RecoveryInput:
+      type: object
+      required: [action, id]
+      properties:
+        action: { type: string, enum: [record, snapshot] }
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [scans, reports, feedback, users] }
+    RecoveryResult:
+      type: object
+      required: [restored, message]
+      properties:
+        restored: { type: number }
+        message: { type: string }
+    DeletedRecord:
+      type: object
+      required: [kind, id, title, deletedAt]
+      properties:
+        kind: { type: string, enum: [scans, reports, feedback, users] }
+        id: { type: string }
+        title: { type: string }
+        deletedAt: { type: string }
+    BackupOverview:
+      type: object
+      required: [role, enabled, ready, message, scheduleHours, retentionDays, databaseBackups, snapshots, deleted]
+      properties:
+        role: { type: string, enum: [user, admin] }
+        enabled: { type: boolean }
+        ready: { type: boolean }
+        message: { type: string }
+        scheduleHours: { type: number }
+        retentionDays: { type: number }
+        databaseBackups:
+          type: array
+          items: { $ref: "#/components/schemas/BackupFile" }
+        snapshots:
+          type: array
+          items: { $ref: "#/components/schemas/BackupFile" }
+        deleted:
+          type: array
+          items: { $ref: "#/components/schemas/DeletedRecord" }
     EmailVerificationRequest:
       type: object
       required: [email]

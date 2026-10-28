@@ -150,6 +150,18 @@ export default function SettingsScreen() {
         <Text style={{ color: colors.primary }}>›</Text>
       </Pressable>
       <Pressable
+        testID="backup-link"
+        accessibilityRole="button"
+        onPress={() => router.push("/backup")}
+        style={[
+          styles.row,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
+      >
+        <Text style={{ color: colors.foreground }}>Backups and restore</Text>
+        <Text style={{ color: colors.primary }}>›</Text>
+      </Pressable>
+      <Pressable
         testID="logout-button"
         disabled={busy}
         onPress={() => void logout()}

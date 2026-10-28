@@ -30,6 +30,7 @@ export async function requireAuth(
   }
   if (tokenUser.role === "admin") {
     const allowedAdminRequest =
+      (["/", "/database", "/snapshot", "/restore"].includes(req.path) && req.baseUrl === "/api/backup") ||
       (req.path === "/reports" && req.method === "GET") ||
       (req.path === "/admin/records" && req.method === "GET") ||
       (req.path === "/admin/feedback" && req.method === "GET") ||

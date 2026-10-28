@@ -5,6 +5,78 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface BackupFile {
+  id: string;
+  createdAt: string;
+  bytes: number;
+}
+
+export type RecoveryInputAction = typeof RecoveryInputAction[keyof typeof RecoveryInputAction];
+
+
+export const RecoveryInputAction = {
+  record: 'record',
+  snapshot: 'snapshot',
+} as const;
+
+export type RecoveryInputKind = typeof RecoveryInputKind[keyof typeof RecoveryInputKind];
+
+
+export const RecoveryInputKind = {
+  scans: 'scans',
+  reports: 'reports',
+  feedback: 'feedback',
+  users: 'users',
+} as const;
+
+export interface RecoveryInput {
+  action: RecoveryInputAction;
+  id: string;
+  kind?: RecoveryInputKind;
+}
+
+export interface RecoveryResult {
+  restored: number;
+  message: string;
+}
+
+export type DeletedRecordKind = typeof DeletedRecordKind[keyof typeof DeletedRecordKind];
+
+
+export const DeletedRecordKind = {
+  scans: 'scans',
+  reports: 'reports',
+  feedback: 'feedback',
+  users: 'users',
+} as const;
+
+export interface DeletedRecord {
+  kind: DeletedRecordKind;
+  id: string;
+  title: string;
+  deletedAt: string;
+}
+
+export type BackupOverviewRole = typeof BackupOverviewRole[keyof typeof BackupOverviewRole];
+
+
+export const BackupOverviewRole = {
+  user: 'user',
+  admin: 'admin',
+} as const;
+
+export interface BackupOverview {
+  role: BackupOverviewRole;
+  enabled: boolean;
+  ready: boolean;
+  message: string;
+  scheduleHours: number;
+  retentionDays: number;
+  databaseBackups: BackupFile[];
+  snapshots: BackupFile[];
+  deleted: DeletedRecord[];
+}
+
 export interface EmailVerificationRequest {
   /** @maxLength 200 */
   email: string;

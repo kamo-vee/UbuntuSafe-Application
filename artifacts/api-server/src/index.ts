@@ -8,6 +8,7 @@ const [{ default: app }, { pool }] = await Promise.all([
   import("./app.js"),
   import("@workspace/db"),
 ]);
+const { startAutomaticBackups } = await import("./lib/database-backup.js");
 
 const port = Number(process.env.PORT ?? 8080);
 if (!Number.isInteger(port) || port <= 0)
@@ -36,9 +37,10 @@ try {
       "UbuntuSafe database tables are missing. Run `pnpm db:migrate` before starting the API.",
     );
   }
-  app.listen(port, "0.0.0.0", () =>
-    console.log(`UbuntuSafe API listening on 0.0.0.0:${port}`),
-  );
+  app.listen(port, "0.0.0.0", () => {
+    console.log(`UbuntuSafe API listening on 0.0.0.0:${port}`);
+    startAutomaticBackups();
+  });
 } catch (error) {
   console.error(
     "UbuntuSafe could not connect to its configured PostgreSQL database. Check DATABASE_URL and run `pnpm db:migrate`.",

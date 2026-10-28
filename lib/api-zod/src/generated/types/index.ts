@@ -6,7 +6,16 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './backupFile';
+export * from './backupOverview';
+export * from './backupOverviewRole';
+export * from './deletedRecord';
+export * from './deletedRecordKind';
 export * from './emailVerificationConfirmation';
 export * from './emailVerificationRequest';
 export * from './healthStatus';
+export * from './recoveryInput';
+export * from './recoveryInputAction';
+export * from './recoveryInputKind';
+export * from './recoveryResult';
 export * from './verificationStatus';

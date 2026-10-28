@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:backups": "pnpm run build && tsx tests/backups.integration.ts",
+    "backup:database": "tsx src/backup-cli.ts database",
+    "backup:automatic": "tsx src/backup-cli.ts automatic",
+    "backup:status": "tsx src/backup-cli.ts status",
+    "backup:restore": "tsx src/backup-cli.ts restore",
     "services:check": "tsx src/validate-services.ts",
     "services:test-delivery": "tsx src/test-delivery.ts",
     "test:providers": "tsx --test tests/provider-configuration.test.ts",

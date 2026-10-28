@@ -9,6 +9,70 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary View authorized backup status and recoverable records
+ */
+export const GetBackupOverviewResponse = zod.object({
+  "role": zod.enum(['user', 'admin']),
+  "enabled": zod.boolean(),
+  "ready": zod.boolean(),
+  "message": zod.string(),
+  "scheduleHours": zod.number(),
+  "retentionDays": zod.number(),
+  "databaseBackups": zod.array(zod.object({
+  "id": zod.string(),
+  "createdAt": zod.string(),
+  "bytes": zod.number()
+})),
+  "snapshots": zod.array(zod.object({
+  "id": zod.string(),
+  "createdAt": zod.string(),
+  "bytes": zod.number()
+})),
+  "deleted": zod.array(zod.object({
+  "kind": zod.enum(['scans', 'reports', 'feedback', 'users']),
+  "id": zod.string(),
+  "title": zod.string(),
+  "deletedAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Administrator creates an encrypted full database backup
+ */
+export const CreateDatabaseBackupResponse = zod.object({
+  "id": zod.string(),
+  "createdAt": zod.string(),
+  "bytes": zod.number()
+})
+
+
+/**
+ * @summary Save an encrypted snapshot of the signed-in user's records
+ */
+export const CreatePersonalSnapshotResponse = zod.object({
+  "id": zod.string(),
+  "createdAt": zod.string(),
+  "bytes": zod.number()
+})
+
+
+/**
+ * @summary Restore a deleted record or missing personal snapshot records
+ */
+export const RestoreBackupRecordBody = zod.object({
+  "action": zod.enum(['record', 'snapshot']),
+  "id": zod.string().uuid(),
+  "kind": zod.enum(['scans', 'reports', 'feedback', 'users']).optional()
+})
+
+export const RestoreBackupRecordResponse = zod.object({
+  "restored": zod.number(),
+  "message": zod.string()
+})
+
+
+/**
  * @summary Send or resend an email verification code
  */
 export const requestEmailVerificationBodyEmailMax = 200;

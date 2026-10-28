@@ -68,7 +68,7 @@ For a manually started API, use `pnpm --filter @workspace/api-server run dev` wi
 
 ## Email verification and service checks
 
-For the standalone full-connected VS Code edition, start with **`VSCODE-SETUP.md`**. Gemini, Gmail SMTP and Twilio connect directly using your private backend `.env`; no managed provider connector is needed. The downloadable source includes Gmail-ready defaults and explicit opt-in real delivery test commands. Gemini replaces OpenAI for scanning, OCR and transcription; no OpenAI fallback is used. Use an eligible Gemini free-tier project, respect quotas, and review Google's unpaid-service data-use terms before sending content.
+For the standalone VS Code edition, use the Windows setup below. Gemini and Gmail connect directly using your private backend `.env`; SMS is optional and disabled by default. No managed provider connector is needed. Gemini replaces OpenAI for scanning, OCR and transcription; no OpenAI fallback is used.
 
 New registrations must verify a six-digit email code before signing in. Codes expire after 10 minutes, permit five failed attempts, and are single-use. Resends have a one-minute cooldown. If the email provider rejects delivery, the account remains pending and the app offers a resend path; it does not claim a code was sent.
 
@@ -88,7 +88,106 @@ Run the controlled integration suite against a **development database only**:
 pnpm --filter @workspace/api-server run test:integration
 ```
 
-The suite uses isolated SMTP/AI fixture servers, creates only synthetic accounts, and cleans up its own records. These tests do not certify live third-party delivery. See `VALIDATION-REPORT.md` for the latest results and remaining blockers.
+The suite uses isolated SMTP/AI fixture servers, creates only synthetic accounts, and cleans up its own records. These tests do not certify live third-party delivery or physical Android recording/upload/OCR. The known upstream Expo tooling and transitive dependency security findings are not a production security clearance.
+
+## Windows VS Code setup
+
+Requirements: Node.js 24 LTS or newer, PostgreSQL running with your existing `ubuntusafe` database, VS Code and a compatible Expo Go client. pgAdmin 4 manages PostgreSQL; it is not the database engine. Optional VS Code extensions: Expo Tools, Prettier, React Native Tools.
+
+Back up your old folder and `.env` before updating. Keep DATABASE_URL and SESSION_SECRET to preserve access to the same data. Do not drop/recreate the database. The archive is source, not an APK, and contains no credentials or installed dependencies.
+
+Open the extracted root folder (the one containing package.json) in VS Code:
+
+```powershell
+cd C:\UbuntuSafe-Application
+node --version
+npm.cmd install -g pnpm@10.26.1
+pnpm.cmd install --frozen-lockfile
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+```
+
+Edit `.env` privately. A typical configuration is:
+
+```env
+DATABASE_URL=postgresql://postgres:YOUR_DATABASE_PASSWORD@localhost:5432/ubuntusafe
+PORT=8080
+SESSION_SECRET=YOUR_EXISTING_OR_GENERATED_SECRET
+UBUNTUSAFE_ADMIN_EMAIL=YOUR_ADMIN_EMAIL
+UBUNTUSAFE_ADMIN_PASSWORD=YOUR_STRONG_ADMIN_PASSWORD
+GEMINI_API_KEY=YOUR_GOOGLE_AI_STUDIO_KEY
+GEMINI_MODEL=gemini-3.1-flash-lite
+GEMINI_SCAN_MODEL=gemini-3.1-flash-lite
+GEMINI_VISION_MODEL=gemini-3.1-flash-lite
+GEMINI_TRANSCRIPTION_MODEL=gemini-3.1-flash-lite
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=YOUR_GMAIL_ADDRESS
+SMTP_PASS=YOUR_GOOGLE_APP_PASSWORD
+EMAIL_FROM=YOUR_GMAIL_ADDRESS
+SMS_ENABLED=false
+EXPO_PUBLIC_API_URL=
+```
+
+Use the PostgreSQL server password, not the pgAdmin master password. URL-encode reserved characters in it. For a new installation only, generate SESSION_SECRET locally with:
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(48).toString('hex'))"
+```
+
+For Gmail, enable 2-Step Verification and create an app password at https://myaccount.google.com/apppasswords. SMTP_PASS is that app password, not the Google login password. Keep EMAIL_FROM the same as SMTP_USER. Gmail allows port465/secure=true or port587/secure=false with required STARTTLS. Google account policies may restrict app passwords.
+
+For Gemini, obtain your own API key at https://aistudio.google.com/apikey. Keep it server-side, never in an EXPO_PUBLIC_* variable. Per-feature model settings may be blank to inherit GEMINI_MODEL.
+
+### Does free Gemini expire?
+
+The Gemini API Free tier is not a fixed 30-/90-day trial. It can continue while your project/model/region remain eligible and requests stay within quotas. Google may change limits or retire a model; free access is not guaranteed forever. Daily request quotas reset at midnight Pacific time; shorter rate limits have shorter windows. See your actual project limits at https://aistudio.google.com/rate-limit.
+
+Keep the project on the Free tier if you do not want paid API usage. Enabling paid billing can make requests billable; this app does not upgrade the account or fall back to a paid provider. Unpaid-service submissions may be used to improve Google's products: use synthetic/redacted examples, not confidential/sensitive/private data.
+
+Official information: https://ai.google.dev/gemini-api/docs/billing, https://ai.google.dev/gemini-api/docs/pricing, https://ai.google.dev/gemini-api/terms.
+
+### Terminal 1 — API
+
+```powershell
+pnpm.cmd db:migrate
+pnpm.cmd dev:api
+```
+
+Keep it running. Migrations are additive; the recovery update adds an audit table. Back up important existing data before migrations. Restart the API after editing `.env`.
+
+### Terminal 2 — mobile live preview
+
+```powershell
+cd C:\UbuntuSafe-Application
+pnpm.cmd dev:mobile
+```
+
+Keep it running. Connect laptop and phone to the same Wi-Fi and scan the QR code in compatible Expo Go. Press `w` for browser preview. Allow Node through the Windows firewall on Private networks. Leave EXPO_PUBLIC_API_URL blank for automatic LAN detection; if needed use the laptop's reachable LAN URL and port8080, not localhost on the phone. Restart Expo after changing EXPO_PUBLIC_* settings.
+
+### Terminal 3 — checks and real delivery
+
+```powershell
+cd C:\UbuntuSafe-Application
+pnpm.cmd typecheck
+pnpm.cmd test
+pnpm.cmd services:check
+Invoke-RestMethod -Uri "http://localhost:8080/api/healthz" -TimeoutSec 10
+```
+
+Expected readiness: Gemini connected, email connected, SMS disabled. This does not send email or prove inbox receipt. For your own inbox only:
+
+```powershell
+pnpm.cmd services:test-delivery --confirm-send --email-to YOUR_EMAIL_ADDRESS
+```
+
+Check inbox/spam for the message. Never post `.env`, passwords or keys in chat.
+
+## Automatic backups, user/admin restore and GitHub
+
+Read **[BACKUP-RESTORE.md](BACKUP-RESTORE.md)** for the encryption key, PostgreSQL tool paths, daily Windows tasks, separate-empty-database disaster recovery and private GitHub source backup setup. The app's Backups and restore page shows real backup status and recoverable records.
+
+Automatic backups require a configured encryption key and writable private folder. A local file is not protection against losing the computer: keep encrypted copies off-device and the key separately. Administrator/provider `.env` settings need separate secure storage; they are intentionally not in the database or GitHub backups. GitHub and Windows task scheduling are included as scripts, not connected/activated until you run local setup.
 
 ## Check the connection in the app
 

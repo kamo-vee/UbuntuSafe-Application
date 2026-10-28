@@ -29,6 +29,7 @@ export default function AdminDashboardScreen() {
     <View style={styles.actions}>
       <Pressable onPress={() => router.push({ pathname: "/community", params: { admin: "1" } })} style={[styles.action, { backgroundColor: colors.primary }]}><Text style={{ color: colors.primaryForeground, fontWeight: "700" }}>Community reports</Text></Pressable>
       <Pressable onPress={() => router.push("/community-feedback")} style={[styles.action, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}><Text style={{ color: colors.foreground, fontWeight: "700" }}>Community feedback</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => router.push("/backup")} style={[styles.action, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}><Text style={{ color: colors.foreground, fontWeight: "700" }}>Backups and restore</Text></Pressable>
     </View>
     <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Daily scan summaries. Each person’s scans are grouped into one row per day.</Text>
     {busy ? <ActivityIndicator color={colors.primary} /> : error ? <Text accessibilityRole="alert" style={{ color: colors.destructive }}>{error}</Text> : <ScrollView horizontal><ScrollView style={{ maxHeight: 470 }}><View>
