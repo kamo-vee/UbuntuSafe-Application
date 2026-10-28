@@ -146,7 +146,7 @@ router.post("/forgot-password", resetRateLimit, async (req, res, next) => {
       return res.status(503).json({ message: "Email recovery is not configured." });
     }
     if (body.channel === "sms" && !isSmsDeliveryConfigured()) {
-      return res.status(503).json({ message: "SMS recovery is not configured." });
+      return res.status(503).json({ message: "SMS recovery is unavailable. Use email to reset your password." });
     }
     const response = {
       message: "If an account exists for that contact, a reset code has been sent.",
@@ -209,6 +209,9 @@ router.post("/reset-password", resetRateLimit, async (req, res, next) => {
         password: strongPasswordSchema,
       })
       .parse(req.body);
+    if (body.channel === "sms" && !isSmsDeliveryConfigured()) {
+      return res.status(503).json({ message: "SMS recovery is unavailable. Use email to reset your password." });
+    }
     const destination = body.channel === "email"
       ? emailSchema.parse(body.destination)
       : phoneSchema.parse(body.destination);

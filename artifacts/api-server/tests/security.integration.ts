@@ -90,7 +90,7 @@ const child = spawn(process.execPath, ["dist/index.mjs"], {
     SMTP_SECURE: "false", SMTP_USER: "", SMTP_PASS: "", EMAIL_FROM: "fixture@example.test",
     GEMINI_API_KEY: "fixture-only-key", GEMINI_TEST_BASE_URL: `http://127.0.0.1:${aiPort}/v1beta`, NODE_ENV: "test",
     UBUNTUSAFE_ADMIN_EMAIL: "fixture-admin@example.test", UBUNTUSAFE_ADMIN_PASSWORD: "AdminFixtureOnly!7319",
-    TWILIO_ACCOUNT_SID: "", TWILIO_AUTH_TOKEN: "", TWILIO_FROM_NUMBER: "" },
+    SMS_ENABLED: "false", TWILIO_ACCOUNT_SID: "", TWILIO_AUTH_TOKEN: "", TWILIO_FROM_NUMBER: "" },
   stdio: ["ignore", "ignore", "ignore"],
 });
 const base = `http://127.0.0.1:${apiPort}/api`;
@@ -100,12 +100,14 @@ const request = (path: string, token?: string, body?: unknown, method = body ? "
     ...(body ? { body: JSON.stringify(body) } : {}) });
 let passed = 0;
 const check = (name: string) => { passed++; console.log(`PASS ${name}`); };
-function deliveryCli(args: string[]) {
+function deliveryCli(args: string[], checker = false) {
   return new Promise<{ status: number | null; output: string }>((done, reject) => {
-    const task = spawn(process.execPath, ["--import", "tsx", "src/test-delivery.ts", ...args], {
+    const task = spawn(process.execPath, ["--import", "tsx", checker ? "src/validate-services.ts" : "src/test-delivery.ts", ...args], {
       cwd: process.cwd(),
       env: { ...process.env, SMTP_HOST: "127.0.0.1", SMTP_PORT: String(smtpPort), SMTP_SECURE: "false",
-        SMTP_USER: "", SMTP_PASS: "", EMAIL_FROM: "fixture@example.test" },
+        SMTP_USER: "", SMTP_PASS: "", EMAIL_FROM: "fixture@example.test",
+        SMS_ENABLED: "false", NODE_ENV: "test", GEMINI_API_KEY: "fixture-only-key",
+        GEMINI_TEST_BASE_URL: `http://127.0.0.1:${aiPort}` },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let output = "";
@@ -135,6 +137,10 @@ try {
     await new Promise((done) => setTimeout(done, 100));
   }
   assert.equal((await fetch(base + "/healthz")).status, 200);
+  const readiness = await deliveryCli([], true);
+  assert.equal(readiness.status, 0, readiness.output);
+  assert.equal(JSON.parse(readiness.output).sms.status, "disabled");
+  check("email-only readiness succeeds without Twilio");
   const deniedDelivery = await deliveryCli(["--email-to", "fixture@example.test"]);
   assert.equal(deniedDelivery.status, 1);
   assert.equal(acceptedTestEmails, 0);

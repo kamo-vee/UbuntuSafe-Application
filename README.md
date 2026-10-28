@@ -80,7 +80,7 @@ Check provider access without printing credentials or sending to an arbitrary re
 pnpm --filter @workspace/api-server run services:check
 ```
 
-This performs a small real AI request, checks SMTP connectivity/authentication, and checks the SMS account/sender. SMTP connectivity and SMS sender validation are not proof of recipient delivery.
+This performs a small real AI request and checks SMTP connectivity/authentication. SMS is optional and disabled by default: set SMS_ENABLED=false and leave TWILIO_* empty. Verification and mobile password recovery use email. Disabled SMS does not contact Twilio or fail readiness; enabled SMS still checks the account/sender. Provider acceptance is not proof of recipient delivery.
 
 Run the controlled integration suite against a **development database only**:
 

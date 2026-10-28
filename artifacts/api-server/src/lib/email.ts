@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import { Buffer } from "node:buffer";
 import { ProviderError } from "./ai-provider.js";
-import { emailConfig, smsConfig } from "./provider-config.js";
+import { emailConfig, smsConfig, isSmsEnabled } from "./provider-config.js";
 
 function emailTransport() {
   const { host, port, secure, user, pass, requireTLS } = emailConfig();
@@ -98,7 +98,7 @@ export async function sendPasswordResetCode(email: string, code: string) {
 }
 
 export function isSmsDeliveryConfigured() {
-  return Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER);
+  return isSmsEnabled() && Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER);
 }
 
 export async function sendPasswordResetSms(phone: string, code: string) {
@@ -124,6 +124,7 @@ async function sendSmsMessage(phone: string, message: string) {
 }
 
 export async function checkSmsConnection() {
+  if (!isSmsEnabled()) return { status: "disabled", note: "SMS is optional and disabled. Verification and password recovery use email." };
   if (!isSmsDeliveryConfigured()) return { status: "not_configured" };
   try {
     const { sid, token, from } = smsConfig();

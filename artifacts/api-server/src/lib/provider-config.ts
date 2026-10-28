@@ -28,7 +28,13 @@ export function emailConfig() {
   return { host, port, secure, user, pass, from, requireTLS: gmail && !secure };
 }
 
+export function isSmsEnabled() {
+  return process.env.SMS_ENABLED?.trim().toLowerCase() === "true";
+}
+
 export function smsConfig() {
+  if (!isSmsEnabled())
+    throw new ProviderError("SMS is disabled. Use email for account recovery.", "SMS_DISABLED");
   const sid = process.env.TWILIO_ACCOUNT_SID?.trim();
   const token = process.env.TWILIO_AUTH_TOKEN;
   const from = process.env.TWILIO_FROM_NUMBER?.trim();

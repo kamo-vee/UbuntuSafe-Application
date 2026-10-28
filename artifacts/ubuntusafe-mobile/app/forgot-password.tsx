@@ -13,7 +13,7 @@ import { apiRequest } from "@/lib/api";
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const { colors } = useApp();
-  const [channel, setChannel] = useState<"email" | "sms">("email");
+  const channel = "email";
   const [destination, setDestination] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -28,14 +28,6 @@ export default function ForgotPasswordScreen() {
     }
     if (channel === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
       setError("Enter a valid email address.");
-      return;
-    }
-    if (channel === "sms" && !normalized) {
-      setError("Enter your phone number.");
-      return;
-    }
-    if (channel === "sms" && !/^\+[1-9]\d{7,14}$/.test(normalized)) {
-      setError("Enter your phone number in international format, for example +27821234567.");
       return;
     }
     setBusy(true);
@@ -63,15 +55,8 @@ export default function ForgotPasswordScreen() {
         Forgot password?
       </Text>
       <Text style={[styles.body, { color: colors.mutedForeground }]}>
-        Choose where to receive a six-digit code. It expires after 10 minutes.
+        Enter your account email to receive a six-digit code. It expires after 10 minutes. SMS is not required.
       </Text>
-      <View style={{ flexDirection: "row", gap: 10 }}>
-        {(["email", "sms"] as const).map((option) => (
-          <Pressable key={option} onPress={() => setChannel(option)} style={[styles.button, { flex: 1, backgroundColor: channel === option ? colors.primary : colors.card, borderColor: colors.border, borderWidth: 1 }]}>
-            <Text style={{ color: channel === option ? colors.primaryForeground : colors.foreground, fontWeight: "700", textAlign: "center" }}>{option === "email" ? "Email" : "Phone"}</Text>
-          </Pressable>
-        ))}
-      </View>
       <TextInput
         style={[
           styles.input,
@@ -105,7 +90,7 @@ export default function ForgotPasswordScreen() {
           style={[styles.button, { backgroundColor: colors.primary }]}
         >
           <Text style={{ color: colors.primaryForeground, fontWeight: "800" }}>
-            {busy ? "Sending..." : "Send reset link"}
+            {busy ? "Sending..." : "Send reset code"}
           </Text>
         </Pressable>
       )}

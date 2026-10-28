@@ -9,7 +9,7 @@ import { checkSmsConnection, sendConnectionTestSms } from "../src/lib/email.js";
 const names = ["GEMINI_API_KEY", "GEMINI_MODEL", "GEMINI_SCAN_MODEL", "GEMINI_VISION_MODEL", "GEMINI_TRANSCRIPTION_MODEL",
   "NODE_ENV", "GEMINI_TEST_BASE_URL",
   "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASS", "EMAIL_FROM",
-  "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"];
+  "SMS_ENABLED", "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"];
 const original = Object.fromEntries(names.map((key) => [key, process.env[key]]));
 const originalFetch = globalThis.fetch;
 beforeEach(() => { for (const name of names) delete process.env[name]; });
@@ -25,6 +25,7 @@ const gmail = () => Object.assign(process.env, {
   SMTP_USER: "fixture@example.test", SMTP_PASS: "abcd efgh ijkl mnop", EMAIL_FROM: "fixture@example.test",
 });
 const sms = () => Object.assign(process.env, {
+  SMS_ENABLED: "true",
   TWILIO_ACCOUNT_SID: "AC" + "a".repeat(32), TWILIO_AUTH_TOKEN: "b".repeat(32), TWILIO_FROM_NUMBER: "+27110000000",
 });
 
@@ -142,6 +143,19 @@ test("direct Twilio configuration rejects missing values, API-key SIDs and nonin
   sms(); process.env.TWILIO_FROM_NUMBER = "0110000000";
   assert.throws(smsConfig, ProviderError);
 });
+test("SMS is disabled by default, ignores old credentials and cannot send or contact Twilio", async () => {
+  sms();
+  delete process.env.SMS_ENABLED;
+  globalThis.fetch = async () => { throw new Error("Disabled SMS must not contact Twilio"); };
+  assert.equal((await checkSmsConnection()).status, "disabled");
+  await assert.rejects(sendConnectionTestSms("+27820000000"),
+    (error) => error instanceof ProviderError && error.code === "SMS_DISABLED");
+  process.env.SMS_ENABLED = "false";
+  assert.equal((await checkSmsConnection()).status, "disabled");
+  process.env.SMS_ENABLED = "true";
+  delete process.env.TWILIO_AUTH_TOKEN;
+  assert.equal((await checkSmsConnection()).status, "not_configured");
+});
 test("Twilio sender and explicit test-message contracts work without a managed connector", async () => {
   sms();
   globalThis.fetch = async (input, init) => {
@@ -174,5 +188,5 @@ test("provider checker exits unsuccessfully when services are missing without ma
   const output = JSON.parse(result.stdout);
   assert.equal(output.ai.status, "not_configured");
   assert.equal(output.email.status, "not_configured");
-  assert.equal(output.sms.status, "not_configured");
+  assert.equal(output.sms.status, "disabled");
 });

@@ -18,4 +18,5 @@ async function checkAI() {
 }
 const [ai, email, sms] = await Promise.all([checkAI(), checkEmailConnection(), checkSmsConnection()]);
 console.log(JSON.stringify({ ai, email, sms }, null, 2));
-process.exitCode = ai.status === "connected" && email.status === "connected" && sms.status === "sender_validated" ? 0 : 1;
+process.exitCode = ai.status === "connected" && email.status === "connected" &&
+  (sms.status === "disabled" || sms.status === "sender_validated") ? 0 : 1;
