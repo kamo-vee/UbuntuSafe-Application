@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import pg from "pg";
 import { pool } from "@workspace/db";
+import { backupConfigurationIfDue, createConfigurationBackup } from "./configuration-backup.js";
 import { backupSettings, BackupError, saveEncrypted, listBackupFiles, pruneBackupFiles,
   saveSnapshotJson, backupNote, decryptToFile } from "./backup-vault.js";
 
@@ -58,6 +59,12 @@ export async function createDatabaseBackup() {
     client.release();
   }
 }
+export async function createSystemBackup() {
+  const configuration = await createConfigurationBackup();
+  const database = await createDatabaseBackup();
+  await backupNote("Database and private .env backups completed. Copy encrypted files off this computer and keep the key separately.");
+  return { database, configuration };
+}
 export async function createPersonalSnapshot(owner: string) {
   const client = await pool.connect();
   try {
@@ -80,6 +87,9 @@ export async function runAutomaticBackups() {
   const files = await listBackupFiles();
   if (!files[0] || Date.now() - Date.parse(files[0].createdAt) >= settings.hours * 3600000)
     await createDatabaseBackup();
+  let configurationFailed = false;
+  try { await backupConfigurationIfDue(); }
+  catch { configurationFailed = true; }
   const users = (await pool.query("SELECT id FROM ubuntu_users WHERE deleted_at IS NULL")).rows;
   let failed = 0;
   for (const user of users) {
@@ -89,10 +99,14 @@ export async function runAutomaticBackups() {
         await createPersonalSnapshot(user.id);
     } catch { failed++; }
   }
+  if (configurationFailed)
+    throw new BackupError("Database backup is available, but private .env backup failed. Check the root .env and backup settings; personal snapshots were still attempted.");
   if (failed) await backupNote("Database backup completed, but some personal snapshots failed. Review disk space and personal snapshot size limits.");
+  else if (process.env.BACKUP_CONFIG_ENABLED !== "false")
+    await backupNote("Database, private .env and personal backups are current. Copy encrypted files off this computer and keep the key separately.");
 }
 export function startAutomaticBackups() {
-  const tick = () => { void runAutomaticBackups().catch(() => backupNote("Automatic backup failed. Check PostgreSQL tools, encryption settings and free disk space.").catch(() => undefined)); };
+  const tick = () => { void runAutomaticBackups().catch(error => backupNote(error instanceof BackupError ? error.message : "Automatic backup failed. Check PostgreSQL tools, encryption settings and free disk space.").catch(() => undefined)); };
   tick();
   const timer = setInterval(tick, 15 * 60000);
   timer.unref();

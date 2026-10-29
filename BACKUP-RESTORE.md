@@ -6,7 +6,7 @@
 - **Users:** daily encrypted personal snapshots contain the owner's scan/report/feedback history and basic profile information. Users can restore only their own deleted or missing records. Existing active records are not overwritten.
 - **Administrators:** full database backups include all users and community administration data. The admin recovery screen can restore deleted records/accounts. Restoring an account invalidates its old user sessions.
 - **Application code:** a separate GitHub branch contains source/configuration templates only, never database dumps or `.env`.
-- **Private configuration:** your `.env` contains administrator credentials, provider credentials, session secret and backup key. It is NOT inside the database or GitHub backup. Keep an additional encrypted copy in a trusted password manager or encrypted offline storage. Losing both `.env` and the backup key can make recovery impossible.
+- **Private configuration:** the root `.env` is backed up separately as an AES-256-GCM encrypted `.usconfig` file. It contains administrator/provider credentials, the session secret and backup key, so it is never committed to GitHub or served through an app download endpoint. Keep the original encryption key separately in a password manager or secure offline storage. The encrypted `.env` cannot recover its own decryption key if you lose that key.
 
 The app cannot recover records permanently deleted before any backup existed. Deleted records retained by the app remain recoverable until the owner deliberately removes them outside the app. There is no automatic permanent deletion of recently deleted records.
 
@@ -24,6 +24,7 @@ Copy the result privately into `.env`. Do not share it, put it in GitHub, or gen
 
 ```env
 BACKUP_ENABLED=true
+BACKUP_CONFIG_ENABLED=true
 BACKUP_ENCRYPTION_KEY=YOUR_GENERATED_BASE64_KEY
 BACKUP_DIRECTORY=private-backups
 BACKUP_INTERVAL_HOURS=24
@@ -38,7 +39,34 @@ Save the encryption key separately from the backups. Changing it does not re-enc
 
 Prefer a folder on an external/encrypted backup drive, e.g. `BACKUP_DIRECTORY=E:\UbuntuSafe-Backups`. It must be writable by the Windows account running the app/tasks. A relative folder is resolved from the command's working directory; the supplied launch commands and scheduled tasks use the project root.
 
-**A backup on the same disk does not protect against disk/computer loss.** Copy completed `.usdb` and `.ussnapshot` files to another device or a trusted cloud folder. Keep the encryption key elsewhere. No cloud account or off-site copy is silently configured by this code.
+**A backup on the same disk does not protect against disk/computer loss.** Copy completed `.usdb`, `.usconfig` and `.ussnapshot` files to another device or a trusted private cloud folder. Keep the encryption key elsewhere. No cloud account or off-site copy is silently configured by this code.
+
+### Back up the database and private `.env` together
+
+From your existing Windows project folder:
+
+```powershell
+cd C:\UbuntuSafe-Application
+pnpm.cmd backup:system
+pnpm.cmd backup:status
+```
+
+The system command succeeds only after both encrypted files are created. They are separate backups, not a single transactional snapshot: if the second operation fails, the first completed file may remain. Status lists database backups under `files` and private configuration backups under `configurationFiles`, with completion times and sizes, never credential values.
+
+The administrator's Back up now action also creates the encrypted configuration sidecar by default. Automatic backups include a due configuration backup as well as database and personal backups. A configuration failure is reported as incomplete instead of falsely claiming everything was protected. `backup:database` remains available for database-only backups. Set `BACKUP_CONFIG_ENABLED=false` only to deliberately disable configuration backups.
+
+The default configuration source is the root `.env`. An optional `BACKUP_CONFIG_SOURCE` can identify a different local file; managed environment secrets without a local file are not exported. Additional mobile `.env` files are not included.
+
+### Recover private configuration without overwriting the live `.env`
+
+Use the original encryption key and the correct backup directory in a minimal private `.env` if the original file was lost. Then list the backup IDs and run:
+
+```powershell
+pnpm.cmd backup:status
+pnpm.cmd backup:configuration-restore YOUR_CONFIGURATION_BACKUP_ID --confirm-private-output
+```
+
+This authenticates the encrypted file and writes `C:\UbuntuSafe-Application\.env.recovered`. It never prints credentials or overwrites an existing output file. Review the recovered file privately before manually replacing the live `.env`; restart the API after replacement. Recovery is a local owner-only command, not an administrator HTTP endpoint. Do not share the recovered file.
 
 ## 2. Migrate safely and test
 

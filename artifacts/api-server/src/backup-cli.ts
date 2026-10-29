@@ -3,25 +3,37 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), "../../..", ".env"), quiet: true });
 const { pool } = await import("@workspace/db");
-const { createDatabaseBackup, runAutomaticBackups, restoreDatabaseToEmptyTarget } = await import("./lib/database-backup.js");
-const { backupSettings, listBackupFiles } = await import("./lib/backup-vault.js");
+const { createDatabaseBackup, createSystemBackup, runAutomaticBackups, restoreDatabaseToEmptyTarget } = await import("./lib/database-backup.js");
+const { backupSettings, listBackupFiles, configurationScope } = await import("./lib/backup-vault.js");
+const { createConfigurationBackup, restoreConfigurationBackup } = await import("./lib/configuration-backup.js");
 try {
   const command = process.argv[2];
   if (command === "database") {
     console.log(JSON.stringify(await createDatabaseBackup(), null, 2));
+  } else if (command === "system") {
+    console.log(JSON.stringify(await createSystemBackup(), null, 2));
+  } else if (command === "configuration") {
+    console.log(JSON.stringify(await createConfigurationBackup(), null, 2));
+  } else if (command === "configuration-restore") {
+    const id = process.argv[3];
+    if (!id || !process.argv.includes("--confirm-private-output"))
+      throw new Error("Use configuration-restore BACKUP_ID --confirm-private-output. Recovery writes a private .env.recovered file, never overwrites .env and never prints its contents.");
+    console.log(JSON.stringify(await restoreConfigurationBackup(id), null, 2));
   } else if (command === "automatic") {
     if (!backupSettings().enabled || !backupSettings().ready) throw new Error("Configure BACKUP_ENABLED=true and BACKUP_ENCRYPTION_KEY before scheduling automatic backups.");
     await runAutomaticBackups();
     console.log("Automatic backup check completed. Use backup:status to inspect completed files.");
   } else if (command === "status") {
     const { enabled, ready, hours, days } = backupSettings();
-    console.log(JSON.stringify({ enabled, ready, scheduleHours: hours, retentionDays: days, files: await listBackupFiles() }, null, 2));
+    console.log(JSON.stringify({ enabled, ready, configurationEnabled: process.env.BACKUP_CONFIG_ENABLED !== "false",
+      scheduleHours: hours, retentionDays: days, files: await listBackupFiles(),
+      configurationFiles: await listBackupFiles(configurationScope) }, null, 2));
   } else if (command === "restore" && process.argv.includes("--confirm-empty-target")) {
     const id = process.argv[3];
     if (!id || !process.env.RESTORE_DATABASE_URL) throw new Error("Specify the backup ID and a separate empty RESTORE_DATABASE_URL in your private .env.");
     await restoreDatabaseToEmptyTarget(id, process.env.RESTORE_DATABASE_URL);
     console.log("Restore completed into the separate recovery database. Inspect it before changing DATABASE_URL. User sessions and recovery codes were invalidated. Keep your original .env securely; administrator/provider settings are not inside the database backup.");
-  } else throw new Error("Use database, automatic, status, or restore BACKUP_ID --confirm-empty-target. Read BACKUP-RESTORE.md first.");
+  } else throw new Error("Use system, configuration, automatic, status, database, configuration-restore BACKUP_ID --confirm-private-output, or restore BACKUP_ID --confirm-empty-target. Read BACKUP-RESTORE.md first.");
 } catch (error) {
   // Only deliberately safe backup messages, never driver errors or connection strings.
   console.error(error instanceof Error && ("expose" in error || !("code" in error)) ? error.message : "Backup command failed. Check private configuration and database/tool availability.");

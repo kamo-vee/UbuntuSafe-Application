@@ -195,9 +195,9 @@ After updating an existing installation, run `pnpm db:migrate` before starting t
 
 ## Automatic backups, user/admin restore and GitHub
 
-Read **[BACKUP-RESTORE.md](BACKUP-RESTORE.md)** for the encryption key, PostgreSQL tool paths, daily Windows tasks, separate-empty-database disaster recovery and private GitHub source backup setup. The app's Backups and restore page shows real backup status and recoverable records.
+Read **[BACKUP-RESTORE.md](BACKUP-RESTORE.md)** for the encryption key, PostgreSQL tool paths, daily Windows tasks, separate-empty-database disaster recovery and private GitHub source backup setup. Use `pnpm.cmd backup:system` to create encrypted database and root `.env` backups together, then `pnpm.cmd backup:status` to see both. Automatic backups and the administrator backup button also protect the root `.env` by default. The app's Backups and restore page shows real backup status and recoverable records.
 
-Automatic backups require a configured encryption key and writable private folder. A local file is not protection against losing the computer: keep encrypted copies off-device and the key separately. Administrator/provider `.env` settings need separate secure storage; they are intentionally not in the database or GitHub backups. GitHub and Windows task scheduling are included as scripts, not connected/activated until you run local setup.
+Automatic backups require a configured encryption key and writable private folder. A local file is not protection against losing the computer: keep encrypted copies off-device and the key separately. Administrator/provider `.env` settings are protected by a separate encrypted `.usconfig` file, not inside the database or GitHub code backups. GitHub and Windows task scheduling are included as scripts, not connected/activated until you run local setup.
 
 ## Check the connection in the app
 

@@ -5,7 +5,7 @@ import { pool } from "@workspace/db";
 import { RestoreBackupRecordBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/auth.js";
 import { backupSettings, listBackupFiles, loadSnapshot, readBackupNote, BackupError } from "../lib/backup-vault.js";
-import { createDatabaseBackup, createPersonalSnapshot } from "../lib/database-backup.js";
+import { createDatabaseBackup, createSystemBackup, createPersonalSnapshot } from "../lib/database-backup.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -44,7 +44,8 @@ router.get("/", async (req, res, next) => {
 router.post("/database", async (req, res, next) => {
   try {
     if (req.user!.role !== "admin") { res.status(403).json({ message: "Only administrators can back up the full database." }); return; }
-    const result = await createDatabaseBackup();
+    const result = process.env.BACKUP_CONFIG_ENABLED === "false"
+      ? await createDatabaseBackup() : (await createSystemBackup()).database;
     await audit(req.user!.id, "admin", "database-backup", null, result.id, 0);
     res.status(201).json(result);
   } catch (error) { next(error); }

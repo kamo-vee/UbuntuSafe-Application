@@ -30,25 +30,34 @@ export async function vaultDirectory() {
   await mkdir(dir, { recursive: true, mode: 0o700 });
   return dir;
 }
-function prefix(owner?: string) {
+export const configurationScope = { kind: "configuration" } as const;
+type VaultScope = string | typeof configurationScope;
+function suffix(owner?: VaultScope) {
+  return typeof owner === "object" ? ".usconfig" : owner ? ".ussnapshot" : ".usdb";
+}
+function prefix(owner?: VaultScope) {
+  if (typeof owner === "object") {
+    if (owner.kind !== "configuration") throw new BackupError("Invalid backup scope.");
+    return "configuration-";
+  }
   if (owner && !uuidPattern.test(owner)) throw new BackupError("Invalid snapshot owner.");
   return owner ? `user-${owner}-` : "database-";
 }
-export async function listBackupFiles(owner?: string) {
+export async function listBackupFiles(owner?: VaultScope) {
   const dir = await vaultDirectory();
-  const start = prefix(owner), suffix = owner ? ".ussnapshot" : ".usdb";
+  const start = prefix(owner), ending = suffix(owner);
   const files = await Promise.all((await readdir(dir)).filter(name =>
-    name.startsWith(start) && name.endsWith(suffix) && uuidPattern.test(name.slice(start.length, -suffix.length)))
+    name.startsWith(start) && name.endsWith(ending) && uuidPattern.test(name.slice(start.length, -ending.length)))
     .map(async name => {
       const info = await stat(join(dir, name));
-      return { id: name.slice(start.length, -suffix.length), createdAt: info.mtime.toISOString(), bytes: info.size };
+      return { id: name.slice(start.length, -ending.length), createdAt: info.mtime.toISOString(), bytes: info.size };
     }));
   return files.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
-export async function saveEncrypted(source: Readable, owner?: string) {
+export async function saveEncrypted(source: Readable, owner?: VaultScope) {
   const dir = await vaultDirectory();
-  const id = randomUUID(), suffix = owner ? ".ussnapshot" : ".usdb";
-  const target = join(dir, `${prefix(owner)}${id}${suffix}`), temporary = `${target}.partial`;
+  const id = randomUUID();
+  const target = join(dir, `${prefix(owner)}${id}${suffix(owner)}`), temporary = `${target}.partial`;
   const iv = randomBytes(12), cipher = createCipheriv("aes-256-gcm", key(), iv);
   // Header is public; GCM authenticates it and all encrypted bytes.
   cipher.setAAD(MAGIC);
@@ -68,11 +77,11 @@ export async function saveEncrypted(source: Readable, owner?: string) {
     throw new BackupError("Encrypted backup failed. Check disk space, PostgreSQL tools and backup settings.");
   }
 }
-export function backupPath(id: string, owner?: string) {
+export function backupPath(id: string, owner?: VaultScope) {
   if (!uuidPattern.test(id)) throw new BackupError("Invalid backup identifier.");
-  return join(backupSettings().directory, `${prefix(owner)}${id}${owner ? ".ussnapshot" : ".usdb"}`);
+  return join(backupSettings().directory, `${prefix(owner)}${id}${suffix(owner)}`);
 }
-export async function decryptToFile(id: string, target: string, owner?: string) {
+export async function decryptToFile(id: string, target: string, owner?: VaultScope) {
   const path = backupPath(id, owner);
   const handle = await import("node:fs/promises").then(fs => fs.open(path, "r"));
   try {
@@ -105,7 +114,7 @@ export async function saveSnapshotJson(owner: string, data: unknown) {
   if (Buffer.byteLength(body) > 32 * 1024 * 1024) throw new BackupError("Personal snapshot is too large. Full database backup still protects your data.");
   return saveEncrypted(Readable.from([body]), owner);
 }
-export async function pruneBackupFiles(owner?: string) {
+export async function pruneBackupFiles(owner?: VaultScope) {
   const files = await listBackupFiles(owner), before = Date.now() - backupSettings().days * 86400000;
   // Always retain at least the newest completed backup for this scope.
   for (const file of files.slice(1)) if (Date.parse(file.createdAt) < before)

@@ -6,6 +6,9 @@
   "scripts": {
     "test:backups": "pnpm run build && tsx tests/backups.integration.ts",
     "backup:database": "tsx src/backup-cli.ts database",
+    "backup:system": "tsx src/backup-cli.ts system",
+    "backup:configuration": "tsx src/backup-cli.ts configuration",
+    "backup:configuration-restore": "tsx src/backup-cli.ts configuration-restore",
     "backup:automatic": "tsx src/backup-cli.ts automatic",
     "backup:status": "tsx src/backup-cli.ts status",
     "backup:restore": "tsx src/backup-cli.ts restore",
