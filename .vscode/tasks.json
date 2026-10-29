@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "API",
+      "type": "shell",
+      "command": "pnpm dev:api",
+      "problemMatcher": []
+    },
+    {
+      "label": "Mobile LAN",
+      "type": "shell",
+      "command": "pnpm dev:mobile",
+      "problemMatcher": []
+    },
+    {
+      "label": "Check",
+      "type": "shell",
+      "command": "pnpm typecheck",
+      "problemMatcher": []
+    },
+    {
+      "label": "Provider checks",
+      "type": "shell",
+      "command": "pnpm services:check",
+      "problemMatcher": []
+    },
+    {
+      "label": "Database backup",
+      "type": "shell",
+      "command": "pnpm backup:database",
+      "problemMatcher": []
+    },
+    {
+      "label": "Backup status",
+      "type": "shell",
+      "command": "pnpm backup:status",
+      "problemMatcher": []
+    }
+  ]
+}

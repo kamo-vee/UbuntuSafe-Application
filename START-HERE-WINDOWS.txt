@@ -1,0 +1,89 @@
+UBUNTUSAFE — COMPLETE WINDOWS SOURCE
+
+This is a complete application, not a patch. Keep every supplied folder together.
+The archive contains a top-level folder named UbuntuSafe-Application.
+Extract the WHOLE archive to C:\ so package.json is at:
+    C:\UbuntuSafe-Application\package.json
+
+UPDATING AN EXISTING INSTALLATION
+1. Stop the API and Expo terminals with Ctrl+C.
+2. Keep the old application folder as a backup. Rename it before extracting
+   this complete download; do not delete it.
+3. Extract the complete archive into C:\, not into the old lib or mobile folder.
+4. Securely copy your old root .env into C:\UbuntuSafe-Application\.env.
+   Preserve DATABASE_URL, SESSION_SECRET and BACKUP_ENCRYPTION_KEY.
+5. Preserve/copy your old private-backups folders at their matching relative
+   locations. If BACKUP_DIRECTORY is an absolute path, retain that setting.
+   Keep any other private local configuration, including a mobile .env if used.
+6. Your existing PostgreSQL database remains on the PostgreSQL server.
+   Do not delete or recreate it.
+
+REQUIREMENTS
+Windows PowerShell, Node.js 24 or newer, pnpm 10.26.1, running PostgreSQL,
+and a compatible Expo Go client for phone testing.
+VS Code extensions are optional. Expo Tools and Prettier are recommended.
+
+SETUP TERMINAL — open PowerShell
+    cd C:\UbuntuSafe-Application
+    node --version
+    npm.cmd install -g pnpm@10.26.1
+    Test-Path .\lib\migrations\001_init.sql
+    Test-Path .\lib\migrations\011_administrator_registration_approval.sql
+    Test-Path .\lib\uri-decoder-compat\package.json
+    Test-Path .\lib\uri-decoder-compat\index.cjs
+
+All four Test-Path commands must return True. If any is False, the extraction
+is incomplete or you opened the wrong folder. Do not create empty replacements.
+
+    pnpm.cmd install --frozen-lockfile
+
+For an existing installation, keep the private .env copied above.
+For a NEW installation only:
+    if (!(Test-Path .env)) { Copy-Item .env.example .env }
+    notepad .env
+Configure your actual database, Gemini, Gmail, owner administrator and encryption
+settings privately. See README.md and BACKUP-RESTORE.md. No real credentials
+are included in this download. Do not upload .env or database backups to GitHub.
+
+Database port check (use your actual configured port if not 5432):
+    Test-NetConnection -ComputerName 127.0.0.1 -Port 5432
+
+Apply additive database migrations:
+    pnpm.cmd db:migrate
+
+TERMINAL 1 — API, keep running
+    cd C:\UbuntuSafe-Application
+    pnpm.cmd dev:api
+
+TERMINAL 2 — MOBILE LIVE PREVIEW, keep running
+    cd C:\UbuntuSafe-Application
+    pnpm.cmd dev:mobile
+
+Use the same Wi-Fi on phone and laptop. Scan the QR code in compatible Expo Go.
+Press w in the Expo terminal for browser preview. Allow Node.js on Windows
+Firewall Private networks. Do not start a second API if one is already running.
+
+TERMINAL 3 — CHECKS
+    cd C:\UbuntuSafe-Application
+    Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/healthz" -TimeoutSec 10
+    pnpm.cmd typecheck
+    pnpm.cmd test
+    pnpm.cmd services:check
+
+Service checks contact Gemini and Gmail. External account quotas, passwords,
+network availability and inbox delivery are separate from code validation.
+SMS is optional and disabled by default.
+
+ENCRYPTED SYSTEM BACKUP — after configuring the ORIGINAL backup key and pg_dump
+    pnpm.cmd backup:system
+    pnpm.cmd backup:status
+
+This creates encrypted database and root .env backups in the configured private
+folder, not on GitHub. Copy encrypted backups off-device and keep the key separate.
+Never regenerate the key used by existing backups.
+
+GITHUB SOURCE UPDATES — after the initial private-repository connection
+    pnpm.cmd backup:github
+
+This commits and pushes application source only. Private configuration and
+database archives are excluded.

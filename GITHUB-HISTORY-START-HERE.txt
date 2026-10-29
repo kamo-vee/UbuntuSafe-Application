@@ -1,0 +1,59 @@
+UBUNTUSAFE — 30 IMPORTED DEVELOPMENT CHECKPOINTS
+
+This repository contains 30 checkpoints imported from genuine existing history.
+They are privacy-filtered exports, not the original unchanged Git objects.
+Private/internal metadata, credentials and hosted-only content were excluded.
+Some genuine checkpoints are empty after filtering. No feature changes were
+invented to reach the requested count. Source-checkpoint IDs are recorded in
+commit messages. Author identities are replaced by a neutral export identity;
+original checkpoint dates are retained. Do not claim these commits were authored
+by a different person. Export filtering necessarily changes commit IDs.
+
+The latest revision is the previously validated complete standalone application,
+with these Git instructions and additional ignore rules. Earlier filtered
+revisions may omit infrastructure-specific files and were not build-tested.
+
+EXTRACT THE WHOLE ZIP, including .git, into C:\.
+The project root should be C:\UbuntuSafe-Application.
+Preserve the old folder first; securely copy your existing .env and private
+backups to the new folder. Do not overwrite the imported .git with an old one.
+Keep your existing PostgreSQL database and original backup encryption key.
+
+The branch is ubuntusafe-history. Its origin is:
+    https://github.com/kamo-vee/UbuntuSafe-Application.git
+The repository must exist and you must have permission to push.
+No login credential or token is stored in this download.
+
+SHOW THE INCLUDED HISTORY
+    cd C:\UbuntuSafe-Application
+    git rev-list --count HEAD
+    git log --oneline
+
+UPLOAD ALL 30 COMMITS TO A NEW BRANCH
+    git push -u origin ubuntusafe-history
+
+Sign in through Git Credential Manager/browser when asked. No force push is
+required or recommended. This does not replace main or ubuntusafe-backup.
+Do not use backup:github to upload this history: that command maintains its own
+separate source-backup repository and branch.
+
+SET YOUR OWN IDENTITY FOR FUTURE COMMITS
+    git config user.name "kamo-vee"
+    git config user.email "YOUR_GITHUB_EMAIL_OR_GITHUB_NOREPLY_EMAIL"
+
+Replace the email placeholder privately using GitHub Settings > Emails. Imported
+commits use the neutral historical export identity, not your new identity.
+
+AFTER MAKING YOUR OWN CODE CHANGES
+    git status
+    git add artifacts lib scripts tests README.md BACKUP-RESTORE.md package.json pnpm-lock.yaml pnpm-workspace.yaml
+    git diff --cached --stat
+    git commit -m "Describe the changes you actually made"
+    git push
+
+Review staged files before committing. The ignore rules exclude .env, database
+archives, installed dependencies, generated output and common private-key files.
+They cannot detect a secret manually pasted into a source file. Never commit
+readable credentials or private user data, even in a private repository.
+
+See START-HERE-WINDOWS.txt for full application setup and terminal commands.
