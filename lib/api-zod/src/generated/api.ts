@@ -9,6 +9,137 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Signed-in user's completed scans this South African calendar week
+ */
+export const GetWeeklyUsageResponse = zod.object({
+  "weekStart": zod.string(),
+  "weekEnd": zod.string(),
+  "scans": zod.array(zod.object({
+  "id": zod.string(),
+  "tool": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Administrator dashboard totals and completed tool usage
+ */
+export const GetAdminAnalyticsResponse = zod.object({
+  "generatedAt": zod.string(),
+  "weekStart": zod.string(),
+  "weekEnd": zod.string(),
+  "adminEmail": zod.string(),
+  "totals": zod.object({
+  "users": zod.number().int(),
+  "activeUsers": zod.number().int(),
+  "scans": zod.number().int(),
+  "reports": zod.number().int(),
+  "feedback": zod.number().int()
+}),
+  "tools": zod.array(zod.object({
+  "tool": zod.string(),
+  "count": zod.number().int(),
+  "users": zod.number().int()
+})),
+  "daily": zod.array(zod.object({
+  "date": zod.string(),
+  "count": zod.number().int()
+})),
+  "userTools": zod.array(zod.object({
+  "userId": zod.string(),
+  "fullName": zod.string(),
+  "surname": zod.string(),
+  "email": zod.string(),
+  "tool": zod.string(),
+  "count": zod.number().int(),
+  "lastUsedAt": zod.string()
+})),
+  "scanRecords": zod.array(zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "tool": zod.string(),
+  "status": zod.string(),
+  "title": zod.string(),
+  "createdAt": zod.string()
+})),
+  "reports": zod.array(zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "category": zod.string(),
+  "status": zod.string(),
+  "details": zod.string(),
+  "createdAt": zod.string()
+})),
+  "feedback": zod.array(zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "message": zod.string(),
+  "createdAt": zod.string()
+}))
+})
+
+
+export const GetAdministratorAccountsResponseItem = zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "surname": zod.string(),
+  "email": zod.string(),
+  "createdAt": zod.string()
+})
+export const GetAdministratorAccountsResponse = zod.array(GetAdministratorAccountsResponseItem)
+
+
+export const createAdministratorAccountBodyFullNameMin = 2;
+export const createAdministratorAccountBodyFullNameMax = 80;
+
+export const createAdministratorAccountBodySurnameMin = 2;
+export const createAdministratorAccountBodySurnameMax = 80;
+
+export const createAdministratorAccountBodyEmailMax = 200;
+
+export const createAdministratorAccountBodyPasswordMin = 12;
+export const createAdministratorAccountBodyPasswordMax = 72;
+
+
+
+export const CreateAdministratorAccountBody = zod.object({
+  "fullName": zod.string().min(createAdministratorAccountBodyFullNameMin).max(createAdministratorAccountBodyFullNameMax),
+  "surname": zod.string().min(createAdministratorAccountBodySurnameMin).max(createAdministratorAccountBodySurnameMax),
+  "email": zod.string().email().max(createAdministratorAccountBodyEmailMax),
+  "password": zod.string().min(createAdministratorAccountBodyPasswordMin).max(createAdministratorAccountBodyPasswordMax)
+})
+
+export const CreateAdministratorAccountResponse = zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "surname": zod.string(),
+  "email": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Download the full administrator CSV report
+ */
+export const ExportAdminReportResponse = zod.unknown()
+
+
+/**
+ * @summary Send the CSV report to the configured administrator email
+ */
+export const EmailAdminReportResponse = zod.object({
+  "accepted": zod.boolean(),
+  "recipient": zod.string(),
+  "message": zod.string()
+})
+
+
+/**
  * @summary View authorized backup status and recoverable records
  */
 export const GetBackupOverviewResponse = zod.object({

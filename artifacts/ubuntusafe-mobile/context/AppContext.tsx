@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
@@ -102,6 +103,7 @@ function writeSession(value: string | null) {
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const scheme = useColorScheme();
   const [user, setUser] = useState<AppUser | null>(null);
   const [biometricUser, setBiometricUser] = useState<AppUser | null>(null);
@@ -233,12 +235,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     const token = await getAuthToken().catch(() => null);
     if (token) {
-      void apiRequest<void>("/auth/logout", {
+      await apiRequest<void>("/auth/logout", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => undefined);
     }
     try {
+      await queryClient.cancelQueries();
+      queryClient.clear();
       await clearAuthToken();
     } finally {
       try {

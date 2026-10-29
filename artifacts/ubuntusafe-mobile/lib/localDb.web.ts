@@ -4,6 +4,7 @@ export type LocalScan = {
   id: string;
   userId: string;
   kind: string;
+  tool?: string | null;
   content: string;
   status: "safe" | "warning" | "danger";
   title: string;

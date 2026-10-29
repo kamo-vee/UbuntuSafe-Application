@@ -13,6 +13,8 @@ import { useApp } from "@/context/AppContext";
 import { BrandLogo } from "@/components/BrandLogo";
 import { clearScansForUser, listScans } from "@/lib/localDb";
 import { syncNow } from "@/lib/sync";
+import { LogoutButton } from "@/components/LogoutButton";
+import { WeeklyScanSummary } from "@/components/WeeklyScanSummary";
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -40,9 +42,11 @@ export default function DashboardScreen() {
     void load();
   }, [user?.id]);
   if (!hydrated || !user) return null;
-  const week = scans.filter(
-    (scan) => Date.now() - new Date(scan.createdAt).getTime() < 7 * 86400000,
-  );
+  const monday = new Date(Date.now() + 2 * 3600000);
+  monday.setUTCHours(0, 0, 0, 0);
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+  const weekStart = monday.getTime() - 2 * 3600000;
+  const week = scans.filter(scan => Date.parse(scan.createdAt) >= weekStart && Date.parse(scan.createdAt) < weekStart + 7 * 86400000);
   const safe = week.filter((scan) => scan.status === "safe").length;
   const activities = [
     ...localActivities,
@@ -95,12 +99,13 @@ export default function DashboardScreen() {
       contentContainerStyle={styles.content}
     >
       <BrandLogo iconSize={34} textSize={19} />
+      <LogoutButton />
       <Text style={[styles.title, { color: colors.foreground }]}>
         {t("welcomeName").replace("{name}", user.fullName)}
       </Text>
+      <WeeklyScanSummary />
       <View style={styles.grid}>
         {[
-          [t("scansThisWeek"), week.length],
           [
             t("safeRate"),
             `${week.length ? Math.round((safe / week.length) * 100) : 100}%`,

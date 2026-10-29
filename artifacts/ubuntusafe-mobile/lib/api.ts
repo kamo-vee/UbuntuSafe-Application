@@ -211,9 +211,10 @@ export async function apiRequest<T>(
     const error = new Error(
       body?.message ??
         `Request failed (${response.status})`,
-    ) as Error & { status: number; code?: string };
+    ) as Error & { status: number; code?: string; fieldErrors?: Record<string, string> };
     error.status = response.status;
     error.code = body?.code;
+    error.fieldErrors = body?.fieldErrors;
     throw error;
   }
   return response.status === 204

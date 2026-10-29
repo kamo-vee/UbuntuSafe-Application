@@ -5,6 +5,118 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type WeeklyUsageScansItem = {
+  id: string;
+  tool: string;
+  createdAt: string;
+};
+
+export interface WeeklyUsage {
+  weekStart: string;
+  weekEnd: string;
+  scans: WeeklyUsageScansItem[];
+}
+
+export interface AdministratorCreateInput {
+  /**
+     * @minLength 2
+     * @maxLength 80
+     */
+  fullName: string;
+  /**
+     * @minLength 2
+     * @maxLength 80
+     */
+  surname: string;
+  /** @maxLength 200 */
+  email: string;
+  /**
+     * @minLength 12
+     * @maxLength 72
+     */
+  password: string;
+}
+
+export interface AdministratorAccount {
+  id: string;
+  fullName: string;
+  surname: string;
+  email: string;
+  createdAt: string;
+}
+
+export type AdminAnalyticsTotals = {
+  users: number;
+  activeUsers: number;
+  scans: number;
+  reports: number;
+  feedback: number;
+};
+
+export type AdminAnalyticsToolsItem = {
+  tool: string;
+  count: number;
+  users: number;
+};
+
+export type AdminAnalyticsDailyItem = {
+  date: string;
+  count: number;
+};
+
+export type AdminAnalyticsUserToolsItem = {
+  userId: string;
+  fullName: string;
+  surname: string;
+  email: string;
+  tool: string;
+  count: number;
+  lastUsedAt: string;
+};
+
+export type AdminAnalyticsScanRecordsItem = {
+  id: string;
+  userId: string;
+  fullName: string;
+  email: string;
+  tool: string;
+  status: string;
+  title: string;
+  createdAt: string;
+};
+
+export type AdminAnalyticsReportsItem = {
+  id: string;
+  fullName: string;
+  email: string;
+  category: string;
+  status: string;
+  details: string;
+  createdAt: string;
+};
+
+export type AdminAnalyticsFeedbackItem = {
+  id: string;
+  fullName: string;
+  email: string;
+  message: string;
+  createdAt: string;
+};
+
+export interface AdminAnalytics {
+  generatedAt: string;
+  weekStart: string;
+  weekEnd: string;
+  adminEmail: string;
+  totals: AdminAnalyticsTotals;
+  tools: AdminAnalyticsToolsItem[];
+  daily: AdminAnalyticsDailyItem[];
+  userTools: AdminAnalyticsUserToolsItem[];
+  scanRecords: AdminAnalyticsScanRecordsItem[];
+  reports: AdminAnalyticsReportsItem[];
+  feedback: AdminAnalyticsFeedbackItem[];
+}
+
 export interface BackupFile {
   id: string;
   createdAt: string;
@@ -96,4 +208,10 @@ export interface VerificationStatus {
 export interface HealthStatus {
   status: string;
 }
+
+export type EmailAdminReport202 = {
+  accepted: boolean;
+  recipient: string;
+  message: string;
+};
 

@@ -1,10 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useApp } from "@/context/AppContext";
-
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
-const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{10,}$/;
+import { validateAccountFields, type RegistrationField } from "@/lib/account-fields";
 
 export default function CreateAccountScreen() {
   const router = useRouter();
@@ -20,19 +18,21 @@ export default function CreateAccountScreen() {
   const [useBiometrics, setUseBiometrics] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<RegistrationField, string>>>({});
+  const [touched, setTouched] = useState<Partial<Record<RegistrationField, boolean>>>({});
+  const inputs = useRef<Partial<Record<RegistrationField, TextInput | null>>>({});
+  const values = { fullName, surname, dateOfBirth, email, phone, password, confirmPassword };
 
   const submit = async () => {
     setError("");
-    if (fullName.trim().length < 2) return setError("Enter your full name.");
-    if (surname.trim().length < 2) return setError("Enter your surname.");
-    if (!dateOfBirth.trim()) return setError("Enter your date of birth.");
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) || Number.isNaN(Date.parse(dateOfBirth)) || new Date(dateOfBirth) >= new Date()) return setError("Enter a valid date of birth as YYYY-MM-DD.");
-    if (!emailPattern.test(email.trim())) return setError("Enter a valid email address.");
-    if (!password) return setError("Enter a valid password.");
-    if (!strongPassword.test(password)) return setError("Use at least 10 characters with uppercase, lowercase, a number and a symbol.");
-    if (!confirmPassword) return setError("Re-enter your password.");
-    if (password !== confirmPassword) return setError("The passwords do not match.");
-    if (phone.trim() && !/^\+[1-9]\d{7,14}$/.test(phone.trim())) return setError("Enter a phone number in international format, for example +27821234567.");
+    const problems = validateAccountFields(values);
+    setFieldErrors(problems);
+    const first = (Object.keys(values) as RegistrationField[]).find(key => problems[key]);
+    if (first) {
+      setTouched(Object.fromEntries(Object.keys(values).map(key => [key, true])));
+      inputs.current[first]?.focus();
+      return;
+    }
     setBusy(true);
     try {
       const created = await register(fullName.trim(), surname.trim(), dateOfBirth, email.trim(), phone.trim() || null, password, false);
@@ -52,16 +52,37 @@ export default function CreateAccountScreen() {
       Alert.alert("Account created", "You have created your account. You can sign in now.");
       router.replace("/sign-in");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not create your account. Please try again.");
+      const fields = cause && typeof cause === "object" && "fieldErrors" in cause ? cause.fieldErrors : null;
+      if (fields && typeof fields === "object") {
+        setFieldErrors(fields as Partial<Record<RegistrationField, string>>);
+        const first = Object.keys(fields)[0] as RegistrationField;
+        inputs.current[first]?.focus();
+      } else setError(cause instanceof Error ? cause.message : "Could not create your account. Please try again.");
       if (useBiometrics) await signOut().catch(() => undefined);
     } finally {
       setBusy(false);
     }
   };
 
-  const input = (label: string, value: string, setValue: (next: string) => void, props: Record<string, unknown> = {}) => (
-    <TextInput accessibilityLabel={label} placeholder={label} placeholderTextColor={colors.mutedForeground} value={value} onChangeText={setValue} style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]} {...props as any} />
-  );
+  const fieldOrder: RegistrationField[] = ["fullName", "surname", "dateOfBirth", "email", "phone", "password", "confirmPassword"];
+  let inputIndex = 0;
+  const input = (label: string, value: string, setValue: (next: string) => void, props: Record<string, unknown> = {}) => {
+    const field = fieldOrder[inputIndex++];
+    return <View style={{ gap: 5, ...(field === "password" ? { flex: 1 } : {}) }}>
+      <Text style={{ color: colors.foreground, fontWeight: "600" }}>{label}</Text>
+      <TextInput ref={element => { inputs.current[field] = element; }} testID={`register-${field}`}
+        accessibilityLabel={label} accessibilityHint={fieldErrors[field] || undefined}
+        placeholder={label} placeholderTextColor={colors.mutedForeground} value={value} editable={!busy}
+        onChangeText={next => {
+          setValue(next); setError("");
+          setFieldErrors(current => ({ ...current, [field]: touched[field] ? validateAccountFields({ ...values, [field]: next })[field] : undefined,
+            ...(field === "password" && touched.confirmPassword ? { confirmPassword: validateAccountFields({ ...values, password: next }).confirmPassword } : {}) }));
+        }}
+        onBlur={() => { setTouched(current => ({ ...current, [field]: true })); setFieldErrors(current => ({ ...current, [field]: validateAccountFields(values)[field] })); }}
+        style={[styles.input, { color: colors.foreground, borderColor: fieldErrors[field] ? colors.destructive : colors.border, backgroundColor: colors.card }]} {...props as any} />
+      {fieldErrors[field] ? <Text accessibilityRole="alert" testID={`error-${field}`} style={{ color: colors.destructive, fontSize: 13 }}>{fieldErrors[field]}</Text> : null}
+    </View>;
+  };
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled">
       <Text style={[styles.title, { color: colors.foreground }]}>Create your account</Text>

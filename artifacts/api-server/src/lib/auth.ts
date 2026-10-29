@@ -29,6 +29,7 @@ export async function registerUser(
     if (existingPhone)
       throw Object.assign(new Error("A different account already uses that phone number."), {
         statusCode: 409,
+        fieldErrors: { phone: "A different account already uses this phone number." },
       });
   }
   const existing = await db
@@ -39,7 +40,7 @@ export async function registerUser(
   if (existing.length)
     throw Object.assign(
       new Error("An account with that email already exists."),
-      { statusCode: 409 },
+      { statusCode: 409, fieldErrors: { email: "An account with this email already exists. Sign in or use another email." } },
     );
   const passwordHash = await bcrypt.hash(password, 12);
   const [user] = await db

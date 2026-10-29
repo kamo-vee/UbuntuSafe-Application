@@ -1,78 +1,68 @@
-import { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { useFocusEffect, useRouter } from "expo-router";
-import type { BackupOverview } from "@workspace/api-client-react";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { getGetBackupOverviewQueryKey, useCreateDatabaseBackup, useGetBackupOverview } from "@workspace/api-client-react";
 import { useApp } from "@/context/AppContext";
-import { apiRequest } from "@/lib/api";
+import { errorMessage } from "@/lib/admin-export";
 
 export function AdminBackupSummary() {
   const { colors } = useApp();
   const router = useRouter();
-  const [data, setData] = useState<BackupOverview | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [refresh, setRefresh] = useState(0);
+  const q = useGetBackupOverview({ query: { queryKey: getGetBackupOverviewQueryKey(), staleTime: 30000, refetchInterval: 60000, refetchOnWindowFocus: true } });
+  const run = useCreateDatabaseBackup();
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const data = q.data;
+  const isAdmin = data?.role === "admin";
+  const latest = data?.databaseBackups.reduce<typeof data.databaseBackups[number] | undefined>(
+    (a, b) => (!a || new Date(b.createdAt) > new Date(a.createdAt) ? b : a), undefined);
+  const canRun = !!data && isAdmin && data.ready && !run.isPending;
 
-  useFocusEffect(useCallback(() => {
-    let active = true;
-    const load = async () => {
-      try {
-        const result = await apiRequest<BackupOverview>("/backup");
-        if (!active) return;
-        if (result.role !== "admin") {
-          setData(null);
-          setError("Administrator sign-in is required to view system backups.");
-        } else {
-          setData(result);
-          setError("");
-        }
-      } catch (e) {
-        if (active) {
-          setData(null);
-          setError(e instanceof Error ? e.message : "Could not load backup information.");
-        }
-      } finally { if (active) setLoading(false); }
-    };
-    setLoading(true);
-    void load();
-    const timer = setInterval(() => void load(), 60000);
-    return () => { active = false; clearInterval(timer); };
-  }, [refresh]));
+  const backupNow = async () => {
+    setMsg(null);
+    try {
+      const file = await run.mutateAsync();
+      await q.refetch();
+      setMsg({ ok: true, text: `Backup completed ${new Date(file.createdAt).toLocaleString()}` });
+    } catch (e) {
+      setMsg({ ok: false, text: errorMessage(e, "Backup failed.") });
+    }
+  };
 
-  const latest = data?.databaseBackups[0];
-  const detail = { color: colors.mutedForeground };
   return (
-    <View testID="admin-backup-summary" style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={[styles.title, { color: colors.foreground }]}>Backup information</Text>
-      {loading ? <ActivityIndicator color={colors.primary} /> : null}
-      {error ? <Text accessibilityRole="alert" style={{ color: colors.destructive }}>{error}</Text> : null}
-      {data ? <>
-        <Text style={{ color: data.ready && data.enabled ? colors.primary : colors.destructive, fontWeight: "800" }}>
-          {!data.ready ? "Setup required — encryption key not configured" : data.enabled ? "Automatic backups enabled" : "Automatic backups disabled"}
+    <View testID="admin-backup-summary" style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Text style={[s.title, { color: colors.foreground }]}>Backups</Text>
+      {q.isLoading ? <Text style={{ color: colors.mutedForeground }}>Loading backup status...</Text> : null}
+      {q.error ? <Text accessibilityRole="alert" style={{ color: colors.destructive }}>{errorMessage(q.error, "Could not load backup status.")}</Text> : null}
+      {data && !isAdmin ? <Text accessibilityRole="alert" style={{ color: colors.destructive }}>Administrator sign-in required.</Text> : null}
+      {data && isAdmin ? <>
+        <Text style={[s.label, { color: colors.mutedForeground }]}>Latest backup</Text>
+        <Text testID="text-latest-backup" style={[s.big, { color: colors.foreground }]}>
+          {latest ? new Date(latest.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "medium" }) : "None yet"}
         </Text>
-        <Text style={detail}>{data.message}</Text>
-        <Text style={detail}>Latest completed database backup: {latest ? new Date(latest.createdAt).toLocaleString() : "None yet"}</Text>
-        <Text style={detail}>Completed database backups: {data.databaseBackups.length}{latest ? ` · Latest size: ${(latest.bytes / 1024).toFixed(1)} KB` : ""}</Text>
-        <Text style={detail}>Schedule: every {data.scheduleHours} hours · Retention: {data.retentionDays} days</Text>
-        <Text style={detail}>Deleted records available in recovery list: {data.deleted.length}</Text>
-        <Text style={detail}>Includes user records and community administration data. GitHub backs up code only.</Text>
+        <Text style={{ color: !data.ready ? colors.destructive : data.enabled ? colors.primary : colors.destructive, fontWeight: "700" }}>
+          {!data.ready ? "Setup required: encryption key not configured" : data.enabled ? `Automatic every ${data.scheduleHours} h` : "Automatic backups off"}
+        </Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{data.databaseBackups.length} stored · kept {data.retentionDays} days</Text>
       </> : null}
-      <View style={styles.actions}>
-        <Pressable accessibilityRole="button" onPress={() => router.push("/backup")}
-          style={[styles.button, { backgroundColor: colors.primary }]}>
-          <Text style={{ color: colors.primaryForeground, fontWeight: "800" }}>View backups and restore</Text>
+      {msg ? <Text accessibilityRole="alert" style={{ color: msg.ok ? colors.primary : colors.destructive }}>{msg.text}</Text> : null}
+      <View style={s.actions}>
+        <Pressable testID="button-backup-now" accessibilityRole="button" disabled={!canRun} onPress={() => void backupNow()}
+          style={[s.button, { backgroundColor: colors.primary, opacity: canRun ? 1 : 0.5 }]}>
+          <Text style={{ color: colors.primaryForeground, fontWeight: "800" }}>{run.isPending ? "Backing up..." : "Back up now"}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" disabled={loading} onPress={() => setRefresh(value => value + 1)}
-          style={[styles.button, { borderWidth: 1, borderColor: colors.border, opacity: loading ? 0.5 : 1 }]}>
-          <Text style={{ color: colors.foreground, fontWeight: "700" }}>Refresh backup status</Text>
+        <Pressable accessibilityRole="button" onPress={() => router.push("/backup")}
+          style={[s.button, { borderWidth: 1, borderColor: colors.border }]}>
+          <Text style={{ color: colors.foreground, fontWeight: "700" }}>Backups and restore</Text>
         </Pressable>
       </View>
     </View>
   );
 }
-const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 14, padding: 16, gap: 9 },
+const s = StyleSheet.create({
+  card: { borderWidth: 1, borderRadius: 14, padding: 16, gap: 6 },
   title: { fontSize: 19, fontWeight: "800" },
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  label: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.6 },
+  big: { fontSize: 18, fontWeight: "800" },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 },
   button: { minHeight: 46, borderRadius: 12, paddingHorizontal: 14, justifyContent: "center", alignItems: "center" },
 });

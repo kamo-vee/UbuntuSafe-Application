@@ -31,7 +31,7 @@ const report = randomUUID(), feedback = randomUUID(), removedAccount = randomUUI
 const recoveryDatabase = "us_recovery_" + randomUUID().replaceAll("-", "");
 let recoveryCreated = false;
 const token = (id: string, role?: "admin") => signToken({ userId: id, email: "fixture@example.test", exp: Date.now() + 3600000, sessionVersion: 0, ...(role ? { role } : {}) });
-const userToken = token(user), otherToken = token(other), adminToken = token("fixture-admin", "admin");
+const userToken = token(user), otherToken = token(other), adminToken = token("admin", "admin");
 const server = spawn(process.execPath, ["dist/index.mjs"], { env: { ...process.env, PORT: String(port), BACKUP_ENABLED: "false" }, stdio: "ignore" });
 const request = (path: string, auth?: string, body?: unknown, method = body ? "POST" : "GET") =>
   fetch(`http://127.0.0.1:${port}/api${path}`, { method, headers: { "Content-Type": "application/json", ...(auth ? { Authorization: `Bearer ${auth}` } : {}) },

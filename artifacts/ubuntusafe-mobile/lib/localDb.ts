@@ -4,6 +4,7 @@ export type LocalScan = {
   id: string;
   userId: string;
   kind: string;
+  tool?: string | null;
   content: string;
   status: "safe" | "warning" | "danger";
   title: string;
@@ -33,6 +34,8 @@ export async function initLocalDb() {
     CREATE TABLE IF NOT EXISTS sync_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, entity TEXT NOT NULL, entity_id TEXT NOT NULL, operation TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS sync_meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
   `);
+  const columns = await database.getAllAsync<{ name: string }>("PRAGMA table_info(scans)");
+  if (!columns.some(column => column.name === "tool")) await database.execAsync("ALTER TABLE scans ADD COLUMN tool TEXT");
 }
 
 export async function clearCachedUserData() {
@@ -48,8 +51,8 @@ export async function clearCachedUserData() {
 
 export async function saveScan(scan: LocalScan) {
   await database.runAsync(
-    `INSERT OR REPLACE INTO scans (id,user_id,kind,content,status,title,detail,created_at,updated_at,deleted_at,synced)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+    `INSERT OR REPLACE INTO scans (id,user_id,kind,content,status,title,detail,created_at,updated_at,deleted_at,synced,tool)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
     scan.id,
     scan.userId,
     scan.kind,
@@ -61,12 +64,13 @@ export async function saveScan(scan: LocalScan) {
     scan.updatedAt,
     scan.deletedAt ?? null,
     scan.synced,
+    scan.tool ?? scan.kind,
   );
 }
 
 export async function listScans(userId: string): Promise<LocalScan[]> {
   return database.getAllAsync<LocalScan>(
-    "SELECT id, user_id as userId, kind, content, status, title, detail, created_at as createdAt, updated_at as updatedAt, deleted_at as deletedAt, synced FROM scans WHERE user_id=? AND deleted_at IS NULL ORDER BY created_at DESC",
+    "SELECT id, user_id as userId, kind, tool, content, status, title, detail, created_at as createdAt, updated_at as updatedAt, deleted_at as deletedAt, synced FROM scans WHERE user_id=? AND deleted_at IS NULL ORDER BY created_at DESC",
     userId,
   );
 }

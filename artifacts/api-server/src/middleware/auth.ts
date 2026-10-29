@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { bearerUser } from "../lib/auth.js";
-import { and, db, eq, gt, isNull, revokedAuthTokens, ubuntuUsers } from "@workspace/db";
+import { and, db, eq, gt, isNull, revokedAuthTokens, ubuntuUsers, ubuntuAdmins } from "@workspace/db";
 import { hashContent } from "../lib/crypto.js";
 
 export async function requireAuth(
@@ -30,6 +30,7 @@ export async function requireAuth(
   }
   if (tokenUser.role === "admin") {
     const allowedAdminRequest =
+      req.baseUrl === "/api/admin" ||
       (["/", "/database", "/snapshot", "/restore"].includes(req.path) && req.baseUrl === "/api/backup") ||
       (req.path === "/reports" && req.method === "GET") ||
       (req.path === "/admin/records" && req.method === "GET") ||
@@ -40,10 +41,20 @@ export async function requireAuth(
       res.status(403).json({ message: "Administrator sessions cannot access this resource." });
       return;
     }
+    let fullName = "Administrator";
+    if (tokenUser.id !== "admin") {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tokenUser.id)) {
+        res.status(401).json({ message: "Administrator account not found. Sign in again." }); return;
+      }
+      const [admin] = await db.select().from(ubuntuAdmins)
+        .where(and(eq(ubuntuAdmins.id, tokenUser.id), isNull(ubuntuAdmins.deletedAt))).limit(1);
+      if (!admin) { res.status(401).json({ message: "Administrator account not found. Sign in again." }); return; }
+      fullName = `${admin.fullName} ${admin.surname}`;
+    }
     req.user = {
       id: tokenUser.id,
       email: tokenUser.email,
-      fullName: "Administrator",
+      fullName,
       role: "admin",
     };
     next();

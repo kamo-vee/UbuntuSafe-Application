@@ -14,6 +14,25 @@ function emailTransport() {
   });
 }
 
+export async function sendAdministratorReport(csv: string) {
+  const recipient = process.env.UBUNTUSAFE_ADMIN_EMAIL?.trim();
+  if (!recipient || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient))
+    throw Object.assign(new Error("Configure a valid administrator email before sending a report."), { statusCode: 503, expose: true });
+  if (!isEmailDeliveryConfigured())
+    throw Object.assign(new Error("Email delivery is not configured."), { statusCode: 503, expose: true });
+  try {
+    const result = await emailTransport().sendMail({
+      from: process.env.EMAIL_FROM, to: recipient, subject: "UbuntuSafe administrator report",
+      text: "Your UbuntuSafe usage, scan records, community reports and feedback are attached. Handle this report as private account information.",
+      attachments: [{ filename: "UbuntuSafe-admin-report.csv", content: csv, contentType: "text/csv; charset=utf-8" }],
+    });
+    if (!result.accepted.length) throw new Error("Recipient not accepted");
+    return recipient;
+  } catch {
+    throw Object.assign(new Error("The email provider did not accept the report. Check email settings and try again."), { statusCode: 503, expose: true });
+  }
+}
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => {
     const entities: Record<string, string> = {

@@ -1,18 +1,20 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import { and, communityFeedback, communityReports, db, desc, eq, gte, isNull, scans, ubuntuUsers } from "@workspace/db";
+import { and, communityFeedback, communityReports, db, desc, eq, gte, lt, isNull, scans, ubuntuUsers } from "@workspace/db";
 import { requireAuth } from "../middleware/auth.js";
 import { sanitizeText } from "../lib/crypto.js";
 import { sendUserReportEmail } from "../lib/email.js";
 import { aiFailure, aiModels, createAIClient, ProviderError } from "../lib/ai-provider.js";
 
 import { decodeMedia } from "../lib/media-validation.js";
+import { southAfricanWeek } from "../lib/admin-analytics.js";
 
 const router = Router();
 router.use(requireAuth);
 
 const scanBody = z.object({
   kind: z.enum(["message", "voice", "email", "link", "job"]),
+  tool: z.enum(["message", "voice", "email", "link", "job", "screen"]).optional(),
   content: z.string().trim().min(3).max(12000),
   deviceId: z.string().max(100).optional(),
 });
@@ -348,9 +350,22 @@ router.post("/screen/ocr", async (req, res, next) => {
   }
 });
 
+router.get("/usage/week", async (req, res, next) => {
+  try {
+    const { start, end } = southAfricanWeek();
+    const rows = await db.select({ id: scans.id, tool: scans.tool, kind: scans.kind, createdAt: scans.createdAt })
+      .from(scans).where(and(eq(scans.userId, req.user!.id), isNull(scans.deletedAt),
+        gte(scans.createdAt, start), lt(scans.createdAt, end)));
+    res.json({ weekStart: start.toISOString(), weekEnd: end.toISOString(),
+      scans: rows.map(row => ({ id: row.id, tool: row.tool ?? row.kind, createdAt: row.createdAt.toISOString() })) });
+  } catch (error) { next(error); }
+});
+
 router.post("/scan", async (req, res, next) => {
   try {
     const body = scanBody.parse(req.body);
+    if (body.tool && body.tool !== body.kind && !(body.tool === "screen" && body.kind === "message"))
+      return res.status(400).json({ message: "The selected tool does not match the scan type." });
     validateKind(body.kind, body.content);
     const rulesStatus = classify(body.kind, body.content) as "safe" | "warning" | "danger";
     let status = rulesStatus;
@@ -401,6 +416,7 @@ router.post("/scan", async (req, res, next) => {
       .values({
         userId: req.user!.id,
         kind: body.kind,
+        tool: body.tool ?? body.kind,
         content: body.content,
         status,
         title,

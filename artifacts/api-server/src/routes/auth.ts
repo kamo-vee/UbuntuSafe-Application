@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
-import { and, db, eq, gt, isNull, passwordResetTokens, revokedAuthTokens, ubuntuUsers } from "@workspace/db";
+import { and, db, eq, gt, isNull, passwordResetTokens, revokedAuthTokens, ubuntuUsers, ubuntuAdmins } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { loginUser, registerUser } from "../lib/auth.js";
@@ -15,6 +15,7 @@ import {
 } from "../lib/email.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requestVerification } from "../lib/email-verification.js";
+import { registrationSchema } from "../lib/account-validation.js";
 
 const router = Router();
 const loginRateLimit = rateLimit({
@@ -52,16 +53,7 @@ const credentials = z.object({
 
 router.post("/register", async (req, res, next) => {
   try {
-    const body = credentials
-      .extend({
-        fullName: z.string().trim().min(2).max(80),
-        surname: z.string().trim().min(2).max(80),
-        dateOfBirth: z.string().date(),
-        phone: z.string().regex(/^\+[1-9]\d{7,14}$/).nullable().optional(),
-        language: z.string().trim().min(2).max(40).optional(),
-        password: strongPasswordSchema,
-      })
-      .parse(req.body);
+    const body = registrationSchema.parse(req.body);
     const result = await registerUser(
         body.fullName,
         body.surname,
@@ -99,21 +91,27 @@ router.post("/admin-login", adminLoginRateLimit, async (req, res, next) => {
     }).parse(req.body);
     const adminEmail = process.env.UBUNTUSAFE_ADMIN_EMAIL?.trim().toLowerCase();
     const adminPassword = process.env.UBUNTUSAFE_ADMIN_PASSWORD;
-    if (!adminEmail || !adminPassword || adminPassword.length < 12) {
-      return res.status(503).json({ message: "Administrator sign-in is not configured correctly on this server." });
-    }
-    const emailMatches = securelyEqual(body.email, adminEmail);
-    const passwordMatches = securelyEqual(body.password, adminPassword);
-    if (!emailMatches || !passwordMatches) {
+    const rootConfigured = Boolean(adminEmail && adminPassword && adminPassword.length >= 12);
+    let adminId = "admin", displayName = "Administrator";
+    const rootMatches = rootConfigured && securelyEqual(body.email, adminEmail!) && securelyEqual(body.password, adminPassword!);
+    if (!rootMatches) {
+      const [account] = await db.select().from(ubuntuAdmins)
+        .where(and(eq(ubuntuAdmins.email, body.email), isNull(ubuntuAdmins.deletedAt))).limit(1);
+      if (!account || !(await bcrypt.compare(body.password, account.passwordHash))) {
+        if (!rootConfigured && !account)
+          return res.status(503).json({ message: "Administrator sign-in is not configured correctly on this server." });
       return res.status(401).json({ message: "The administrator email or password is incorrect." });
+      }
+      adminId = account.id; displayName = `${account.fullName} ${account.surname}`;
+      await db.update(ubuntuAdmins).set({ lastSignedInAt: new Date() }).where(eq(ubuntuAdmins.id, account.id));
     }
     const token = signToken({
-      userId: "admin",
-      email: adminEmail,
+      userId: adminId,
+      email: body.email,
       role: "admin",
       exp: Date.now() + 8 * 60 * 60 * 1000,
     });
-    return res.json({ token, user: { email: adminEmail, fullName: "Administrator" } });
+    return res.json({ token, user: { id: adminId, email: body.email, fullName: displayName } });
   } catch (error) {
     return next(error);
   }

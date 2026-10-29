@@ -11,6 +11,81 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /usage/week:
+    get:
+      operationId: getWeeklyUsage
+      summary: Signed-in user's completed scans this South African calendar week
+      responses:
+        "200":
+          description: Owned active scans, Monday through Sunday
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyUsage"
+  /admin/analytics:
+    get:
+      operationId: getAdminAnalytics
+      summary: Administrator dashboard totals and completed tool usage
+      responses:
+        "200":
+          description: Live administrator statistics and recent records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnalytics"
+  /admin/accounts:
+    get:
+      operationId: getAdministratorAccounts
+      responses:
+        "200":
+          description: Additional administrator accounts, never password hashes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdministratorAccount"
+    post:
+      operationId: createAdministratorAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdministratorCreateInput"
+      responses:
+        "201":
+          description: Created administrator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdministratorAccount"
+  /admin/export:
+    get:
+      operationId: exportAdminReport
+      summary: Download the full administrator CSV report
+      responses:
+        "200":
+          description: CSV report containing usage, scan records, reports and feedback
+          content:
+            text/csv:
+              schema: { type: string }
+  /admin/export/email:
+    post:
+      operationId: emailAdminReport
+      summary: Send the CSV report to the configured administrator email
+      responses:
+        "202":
+          description: SMTP accepted the report; inbox delivery is not guaranteed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accepted, recipient, message]
+                properties:
+                  accepted: { type: boolean }
+                  recipient: { type: string }
+                  message: { type: string }
   /backup:
     get:
       operationId: getBackupOverview
@@ -118,6 +193,123 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    WeeklyUsage:
+      type: object
+      required: [weekStart, weekEnd, scans]
+      properties:
+        weekStart: { type: string }
+        weekEnd: { type: string }
+        scans:
+          type: array
+          items:
+            type: object
+            required: [id, tool, createdAt]
+            properties:
+              id: { type: string }
+              tool: { type: string }
+              createdAt: { type: string }
+    AdministratorCreateInput:
+      type: object
+      required: [fullName, surname, email, password]
+      properties:
+        fullName: { type: string, minLength: 2, maxLength: 80 }
+        surname: { type: string, minLength: 2, maxLength: 80 }
+        email: { type: string, format: email, maxLength: 200 }
+        password: { type: string, minLength: 12, maxLength: 72 }
+    AdministratorAccount:
+      type: object
+      required: [id, fullName, surname, email, createdAt]
+      properties:
+        id: { type: string }
+        fullName: { type: string }
+        surname: { type: string }
+        email: { type: string }
+        createdAt: { type: string }
+    AdminAnalytics:
+      type: object
+      required: [generatedAt, weekStart, weekEnd, adminEmail, totals, tools, daily, userTools, scanRecords, reports, feedback]
+      properties:
+        generatedAt: { type: string }
+        weekStart: { type: string }
+        weekEnd: { type: string }
+        adminEmail: { type: string }
+        totals:
+          type: object
+          required: [users, activeUsers, scans, reports, feedback]
+          properties:
+            users: { type: integer }
+            activeUsers: { type: integer }
+            scans: { type: integer }
+            reports: { type: integer }
+            feedback: { type: integer }
+        tools:
+          type: array
+          items:
+            type: object
+            required: [tool, count, users]
+            properties:
+              tool: { type: string }
+              count: { type: integer }
+              users: { type: integer }
+        daily:
+          type: array
+          items:
+            type: object
+            required: [date, count]
+            properties:
+              date: { type: string }
+              count: { type: integer }
+        userTools:
+          type: array
+          items:
+            type: object
+            required: [userId, fullName, surname, email, tool, count, lastUsedAt]
+            properties:
+              userId: { type: string }
+              fullName: { type: string }
+              surname: { type: string }
+              email: { type: string }
+              tool: { type: string }
+              count: { type: integer }
+              lastUsedAt: { type: string }
+        scanRecords:
+          type: array
+          items:
+            type: object
+            required: [id, userId, fullName, email, tool, status, title, createdAt]
+            properties:
+              id: { type: string }
+              userId: { type: string }
+              fullName: { type: string }
+              email: { type: string }
+              tool: { type: string }
+              status: { type: string }
+              title: { type: string }
+              createdAt: { type: string }
+        reports:
+          type: array
+          items:
+            type: object
+            required: [id, fullName, email, category, status, details, createdAt]
+            properties:
+              id: { type: string }
+              fullName: { type: string }
+              email: { type: string }
+              category: { type: string }
+              status: { type: string }
+              details: { type: string }
+              createdAt: { type: string }
+        feedback:
+          type: array
+          items:
+            type: object
+            required: [id, fullName, email, message, createdAt]
+            properties:
+              id: { type: string }
+              fullName: { type: string }
+              email: { type: string }
+              message: { type: string }
+              createdAt: { type: string }
     BackupFile:
       type: object
       required: [id, createdAt, bytes]

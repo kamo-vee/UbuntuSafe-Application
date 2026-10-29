@@ -59,6 +59,18 @@ export const ubuntuUsers = pgTable("ubuntu_users", {
   ...syncColumns,
 });
 
+export const ubuntuAdmins = pgTable("ubuntu_admins", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  fullName: text("full_name").notNull(),
+  surname: text("surname").notNull(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  createdBy: text("created_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  lastSignedInAt: timestamp("last_signed_in_at", { withTimezone: true }),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
+
 export const passwordResetTokens = pgTable(
   "password_reset_tokens",
   {
@@ -104,6 +116,7 @@ export const scans = pgTable(
       .references(() => ubuntuUsers.id)
       .notNull(),
     kind: scanKindEnum("kind").notNull(),
+    tool: text("tool"),
     content: text("content").notNull(),
     status: scanStatusEnum("status").notNull(),
     title: text("title").notNull(),

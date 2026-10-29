@@ -5,6 +5,7 @@ import ubuntuSafe from "./ubuntu-safe.js";
 import sync from "./sync.js";
 import emailVerification from "./email-verification.js";
 import backup from "./backup.js";
+import admin from "./admin.js";
 
 const router = Router();
 router.get("/healthz", async (_req, res) => {
@@ -20,5 +21,6 @@ router.use("/auth", auth);
 router.use("/auth/email-verification", emailVerification);
 router.use("/sync", sync);
 router.use("/backup", backup);
+router.use("/admin", admin);
 router.use("/", ubuntuSafe);
 export default router;

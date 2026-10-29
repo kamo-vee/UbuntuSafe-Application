@@ -33,7 +33,7 @@ export default function AdminSignInScreen() {
   };
   return <View style={[styles.screen, { backgroundColor: colors.background }]}>
     <Text style={[styles.title, { color: colors.foreground }]}>Administrator sign in</Text>
-    <Text style={{ color: colors.mutedForeground, lineHeight: 22 }}>Use the separate administrator email and password configured for this server.</Text>
+    <Text style={{ color: colors.mutedForeground, lineHeight: 22 }}>Sign in with your administrator account.</Text>
     <TextInput accessibilityLabel="Administrator email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} placeholder="Administrator email" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} />
     <TextInput accessibilityLabel="Administrator password" value={password} onChangeText={setPassword} secureTextEntry placeholder="Password" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} />
     {error ? <Text accessibilityRole="alert" style={{ color: colors.destructive }}>{error}</Text> : null}

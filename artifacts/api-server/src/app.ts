@@ -32,8 +32,15 @@ app.use(
     if (error instanceof ZodError) {
       const issue = error.issues[0];
       const field = issue?.path.join(" ") || "input";
+      const labels: Record<string, string> = { fullName: "name", surname: "surname", dateOfBirth: "date of birth", email: "email address", phone: "phone number", password: "password" };
+      const fieldErrors: Record<string, string> = {};
+      for (const problem of error.issues) {
+        const key = String(problem.path[0] ?? "input");
+        if (!fieldErrors[key]) fieldErrors[key] = problem.message;
+      }
       res.status(400).json({
-        message: `Please check ${field}: ${issue?.message ?? "Enter a valid value."}`,
+        message: `Please check your ${labels[field] ?? field}: ${issue?.message ?? "Enter a valid value."}`,
+        fieldErrors,
       });
       return;
     }
@@ -43,6 +50,7 @@ app.use(
         : 500;
     const exposed = typeof error === "object" && error && "expose" in error && error.expose === true;
     const code = typeof error === "object" && error && "code" in error && error.code === "EMAIL_UNVERIFIED" ? error.code : undefined;
+    const fieldErrors = typeof error === "object" && error && "fieldErrors" in error ? error.fieldErrors : undefined;
     res
       .status(status >= 400 && status <= 599 ? status : 500)
       .json({
@@ -50,6 +58,7 @@ app.use(
           ? error.message
           : "The request could not be completed. Please try again.",
         ...(code ? { code } : {}),
+        ...(fieldErrors ? { fieldErrors } : {}),
       });
   },
 );
