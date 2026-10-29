@@ -1,0 +1,19 @@
+{
+  "language": "Xitsonga",
+  "scamPatterns": [
+    "hi xihatla",
+    "mali ya mahala",
+    "akhawunti yi pfariwile",
+    "u hlawuriwile",
+    "khodi yo tiyisisa",
+    "kombela (pin|khodi|paswedi)",
+    "rhumela mali",
+    "xipfuno",
+    "paswedi",
+    "nkarhi wa hakelo",
+    "hakela",
+    "hakelo ro tsarisa",
+    "hakelo ro endla xikombelo",
+    "mali leyi tiyisisiweke"
+  ]
+}

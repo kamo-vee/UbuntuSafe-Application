@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.expo/
+static-build/
+private-backups/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+*.log
+*.usdb
+*.ussnapshot
+*.dump

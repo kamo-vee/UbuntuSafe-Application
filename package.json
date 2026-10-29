@@ -1,0 +1,32 @@
+{
+  "name": "ubuntusafe-source",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.26.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File ./Start-UbuntuSafe.ps1",
+    "dev:api": "pnpm --filter @workspace/api-server run dev",
+    "dev:mobile": "pnpm --filter @workspace/ubuntusafe-mobile run dev:lan",
+    "db:migrate": "pnpm --filter @workspace/api-server run db:migrate",
+    "services:check": "pnpm --filter @workspace/api-server run services:check",
+    "services:test-delivery": "pnpm --filter @workspace/api-server run services:test-delivery",
+    "test:integration": "pnpm --filter @workspace/api-server run test:integration",
+    "test:backups": "pnpm --filter @workspace/api-server run test:backups",
+    "test:admin-upgrade": "pnpm --filter @workspace/api-server run test:admin-upgrade",
+    "typecheck:libs": "tsc --build lib/db lib/api-zod lib/api-client-react",
+    "typecheck": "pnpm run typecheck:libs && pnpm --filter @workspace/api-server run typecheck && pnpm --filter @workspace/ubuntusafe-mobile run typecheck",
+    "test": "pnpm --filter @workspace/api-server exec tsx ../../tests/scanner.test.ts && pnpm --filter @workspace/api-server run test:providers && node --test tests/*.test.cjs",
+    "backup:github": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/Backup-Source.ps1",
+    "backup:database": "pnpm --filter @workspace/api-server run backup:database",
+    "backup:automatic": "pnpm --filter @workspace/api-server run backup:automatic",
+    "backup:status": "pnpm --filter @workspace/api-server run backup:status",
+    "backup:restore": "pnpm --filter @workspace/api-server run backup:restore"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3",
+    "prettier": "^3.9.6"
+  }
+}

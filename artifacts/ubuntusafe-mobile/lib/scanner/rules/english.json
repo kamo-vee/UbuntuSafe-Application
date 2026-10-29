@@ -1,0 +1,30 @@
+{
+  "language": "English",
+  "scamPatterns": [
+    "urgent",
+    "act now",
+    "limited time",
+    "you have been selected",
+    "claim your prize",
+    "free reward",
+    "unclaimed money",
+    "account suspended",
+    "click here",
+    "verify your account",
+    "send money",
+    "one[- ]time pin",
+    "\\b(otp|one[- ]time password|verification code|passcode)\\b",
+    "\\b(bank|sars|police|tax|delivery)\\s+(account|officer|refund|parcel)\\b",
+    "gift card",
+    "remote access",
+    "pay to apply",
+    "registration fee",
+    "processing fee",
+    "training fee",
+    "guaranteed job",
+    "no interview",
+    "investment returns",
+    "double your money",
+    "keep this confidential"
+  ]
+}
