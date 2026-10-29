@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { goBackOrReplace } from "@/lib/navigation";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useApp } from "@/context/AppContext";
 
@@ -18,7 +19,7 @@ export default function UserAccessScreen() {
         <Text style={{ color: colors.foreground, fontWeight: "800" }}>Create user account</Text>
       </Pressable>
       <Pressable accessibilityRole="link" onPress={() => router.push("/admin-sign-in")}><Text style={{ color: colors.mutedForeground, textAlign: "center" }}>Managing UbuntuSafe? Administrator sign in</Text></Pressable>
-      <Pressable onPress={() => router.back()}><Text style={{ color: colors.primary, textAlign: "center" }}>Back</Text></Pressable>
+      <Pressable onPress={() => goBackOrReplace(router, "/role-select")}><Text style={{ color: colors.primary, textAlign: "center" }}>Back</Text></Pressable>
     </View>
   );
 }

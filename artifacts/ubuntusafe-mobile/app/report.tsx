@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useApp } from "@/context/AppContext";
+import { goBackOrReplace } from "@/lib/navigation";
 import { apiRequest } from "@/lib/api";
 import { queueSync } from "@/lib/localDb";
 import * as Crypto from "expo-crypto";
@@ -57,14 +58,14 @@ export default function ReportScreen() {
       Alert.alert(
         "Report received",
         "Thank you for helping keep the community safer.",
-        [{ text: "Done", onPress: () => router.back() }],
+        [{ text: "Done", onPress: () => goBackOrReplace(router, "/community") }],
       );
     } catch {
       await queueSync("report", id, "upsert", payload);
       Alert.alert(
         "Saved offline",
         "Your report will upload when you reconnect.",
-        [{ text: "Done", onPress: () => router.back() }],
+        [{ text: "Done", onPress: () => goBackOrReplace(router, "/community") }],
       );
     } finally {
       setBusy(false);

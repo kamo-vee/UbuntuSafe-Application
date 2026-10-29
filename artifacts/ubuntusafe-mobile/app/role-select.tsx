@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { goBackOrReplace } from "@/lib/navigation";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useApp } from "@/context/AppContext";
 
@@ -19,7 +20,7 @@ export default function RoleSelectScreen() {
       <Pressable style={[styles.button, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]} onPress={() => router.push("/admin-sign-in")}>
         <Text style={{ color: colors.foreground, fontWeight: "800" }}>Admin</Text>
       </Pressable>
-      <Pressable onPress={() => router.back()}><Text style={{ color: colors.primary, textAlign: "center" }}>Back</Text></Pressable>
+      <Pressable onPress={() => goBackOrReplace(router, "/")}><Text style={{ color: colors.primary, textAlign: "center" }}>Back</Text></Pressable>
     </View>
   );
 }

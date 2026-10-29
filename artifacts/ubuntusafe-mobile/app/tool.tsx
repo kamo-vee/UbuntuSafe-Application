@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useApp } from "@/context/AppContext";
+import { goBackOrReplace } from "@/lib/navigation";
 import { scanOffline, type ScanKind } from "@/lib/scanner";
 import { apiRequest } from "@/lib/api";
 import { queueSync, saveScan } from "@/lib/localDb";
@@ -154,7 +155,7 @@ export default function ToolScreen() {
         `This week: ${usage.total} completed scans across all tools. ${label}: ${usage.tools.find(item => item.tool === (isScreenScan ? "screen" : scanKind))?.count ?? 0}.${!usage.connected ? " Count is based on this device." : ""}`,
       ].join("\n\n");
       showNotice(remote.title, report, [
-        { text: "Done", onPress: () => router.back() },
+        { text: "Done", onPress: () => goBackOrReplace(router, "/(tabs)") },
       ]);
     } catch (error) {
       if (!(error instanceof Error) || error.name !== "NetworkError") {
@@ -179,7 +180,7 @@ export default function ToolScreen() {
       showNotice(
         `${verdict.title} (offline)`,
         `${verdict.detail}\n\nLocal rule-based check only; server analysis was unavailable. This result will sync when you reconnect.\n\nThis week: ${usage.total} completed scans across all tools (${usage.connected ? "includes pending sync" : "this device only"}).`,
-        [{ text: "Done", onPress: () => router.back() }],
+        [{ text: "Done", onPress: () => goBackOrReplace(router, "/(tabs)") }],
       );
     } finally {
       setBusy(false);

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput } from "react-native";
 import { useRouter } from "expo-router";
 import { useApp } from "@/context/AppContext";
+import { goBackOrReplace } from "@/lib/navigation";
 import { apiRequest } from "@/lib/api";
 
 export default function FeedbackScreen() {
@@ -14,7 +15,7 @@ export default function FeedbackScreen() {
     try {
       await apiRequest("/feedback", { method: "POST", body: JSON.stringify({ message: clean }) });
       Alert.alert("Feedback received", "Thank you. Your feedback was saved for the UbuntuSafe team.");
-      setMessage(""); router.back();
+      setMessage(""); goBackOrReplace(router, "/settings");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not send feedback."); }
     finally { setBusy(false); }
   };

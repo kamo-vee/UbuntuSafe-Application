@@ -11,6 +11,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useApp } from "@/context/AppContext";
+import { goBackOrReplace } from "@/lib/navigation";
 import { apiRequest } from "@/lib/api";
 import { listOutbox } from "@/lib/localDb";
 import { scanOffline } from "@/lib/scanner";
@@ -120,7 +121,7 @@ export default function CommunityScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Go back"
-          onPress={() => router.back()}
+          onPress={() => goBackOrReplace(router, "/(tabs)")}
           style={[styles.back, { borderColor: colors.border }]}
         >
           <Feather name="arrow-left" size={20} color={colors.foreground} />
