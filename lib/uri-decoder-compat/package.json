@@ -1,9 +1,0 @@
-{
-  "name": "@workspace/uri-decoder-compat",
-  "version": "1.0.0",
-  "private": true,
-  "type": "commonjs",
-  "main": "index.cjs",
-  "engines": { "node": ">=20.19" },
-  "dependencies": { "decode-uri-component": "0.5.0" }
-}
