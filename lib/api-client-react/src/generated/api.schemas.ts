@@ -5,6 +5,31 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type AdministratorReviewInputDecision = typeof AdministratorReviewInputDecision[keyof typeof AdministratorReviewInputDecision];
+
+
+export const AdministratorReviewInputDecision = {
+  approve: 'approve',
+  reject: 'reject',
+} as const;
+
+export interface AdministratorReviewInput {
+  decision: AdministratorReviewInputDecision;
+}
+
+export type AdministratorRegistrationResultStatus = typeof AdministratorRegistrationResultStatus[keyof typeof AdministratorRegistrationResultStatus];
+
+
+export const AdministratorRegistrationResultStatus = {
+  pending: 'pending',
+} as const;
+
+export interface AdministratorRegistrationResult {
+  email: string;
+  status: AdministratorRegistrationResultStatus;
+  message: string;
+}
+
 export type WeeklyUsageScansItem = {
   id: string;
   tool: string;
@@ -37,8 +62,20 @@ export interface AdministratorCreateInput {
   password: string;
 }
 
+export type AdministratorAccountApprovalStatus = typeof AdministratorAccountApprovalStatus[keyof typeof AdministratorAccountApprovalStatus];
+
+
+export const AdministratorAccountApprovalStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
 export interface AdministratorAccount {
   id: string;
+  approvalStatus: AdministratorAccountApprovalStatus;
+  /** @nullable */
+  reviewedAt: string | null;
   fullName: string;
   surname: string;
   email: string;

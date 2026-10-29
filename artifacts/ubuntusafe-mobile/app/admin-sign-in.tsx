@@ -38,6 +38,8 @@ export default function AdminSignInScreen() {
     <TextInput accessibilityLabel="Administrator password" value={password} onChangeText={setPassword} secureTextEntry placeholder="Password" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} />
     {error ? <Text accessibilityRole="alert" style={{ color: colors.destructive }}>{error}</Text> : null}
     <Pressable disabled={busy} onPress={() => void submit()} style={[styles.button, { backgroundColor: colors.primary }]}><Text style={{ color: colors.primaryForeground, fontWeight: "800" }}>{busy ? "Signing in..." : "Admin sign in"}</Text></Pressable>
+    <Pressable testID="link-admin-create-account" accessibilityRole="link" onPress={() => router.push("/admin-create-account")} style={[styles.button, { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card }]}><Text style={{ color: colors.foreground, fontWeight: "800" }}>Create administrator account</Text></Pressable>
+    <Text style={{ color: colors.mutedForeground, textAlign: "center", fontSize: 13 }}>New administrator accounts need approval before sign-in.</Text>
     <Pressable onPress={() => router.back()}><Text style={{ color: colors.primary, textAlign: "center" }}>Back</Text></Pressable>
   </View>;
 }

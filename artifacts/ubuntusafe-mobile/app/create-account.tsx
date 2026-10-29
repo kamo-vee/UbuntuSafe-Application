@@ -85,7 +85,7 @@ export default function CreateAccountScreen() {
   };
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled">
-      <Text style={[styles.title, { color: colors.foreground }]}>Create your account</Text>
+      <Text style={[styles.title, { color: colors.foreground }]}>Create user account</Text>
       <Text style={{ color: colors.mutedForeground }}>Your details are used to protect and manage your account.</Text>
       {input("Full name", fullName, setFullName, { autoCapitalize: "words" })}
       {input("Surname", surname, setSurname, { autoCapitalize: "words" })}
@@ -96,7 +96,7 @@ export default function CreateAccountScreen() {
       {input("Re-enter password", confirmPassword, setConfirmPassword, { secureTextEntry: !showPassword, autoCapitalize: "none" })}
       <View style={[styles.bio, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={{ flex: 1 }}><Text style={{ color: colors.foreground, fontWeight: "700" }}>Enable biometrics</Text><Text style={{ color: colors.mutedForeground, fontSize: 12 }}>You will verify this on your device.</Text></View><Switch value={useBiometrics} onValueChange={setUseBiometrics} trackColor={{ true: colors.primary }} /></View>
       {error ? <Text accessibilityRole="alert" style={{ color: colors.destructive }}>{error}</Text> : null}
-      <Pressable disabled={busy} onPress={() => void submit()} style={[styles.button, { backgroundColor: colors.primary }]}><Text style={{ color: colors.primaryForeground, fontWeight: "800" }}>{busy ? "Creating..." : "Create account"}</Text></Pressable>
+      <Pressable disabled={busy} onPress={() => void submit()} style={[styles.button, { backgroundColor: colors.primary }]}><Text style={{ color: colors.primaryForeground, fontWeight: "800" }}>{busy ? "Creating..." : "Create user account"}</Text></Pressable>
       <Pressable onPress={() => router.replace("/sign-in")}><Text style={{ color: colors.primary, textAlign: "center" }}>Already have an account? Sign in</Text></Pressable>
     </ScrollView>
   );

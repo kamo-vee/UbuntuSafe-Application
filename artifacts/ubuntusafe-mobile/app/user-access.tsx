@@ -15,8 +15,9 @@ export default function UserAccessScreen() {
         <Text style={{ color: colors.primaryForeground, fontWeight: "800" }}>Sign in</Text>
       </Pressable>
       <Pressable style={[styles.button, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]} onPress={() => router.push("/create-account")}>
-        <Text style={{ color: colors.foreground, fontWeight: "800" }}>Create account</Text>
+        <Text style={{ color: colors.foreground, fontWeight: "800" }}>Create user account</Text>
       </Pressable>
+      <Pressable accessibilityRole="link" onPress={() => router.push("/admin-sign-in")}><Text style={{ color: colors.mutedForeground, textAlign: "center" }}>Managing UbuntuSafe? Administrator sign in</Text></Pressable>
       <Pressable onPress={() => router.back()}><Text style={{ color: colors.primary, textAlign: "center" }}>Back</Text></Pressable>
     </View>
   );

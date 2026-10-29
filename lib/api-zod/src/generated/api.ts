@@ -9,6 +9,73 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Create a separate administrator account pending administrator approval
+ */
+export const registerAdministratorBodyFullNameMin = 2;
+export const registerAdministratorBodyFullNameMax = 80;
+
+export const registerAdministratorBodySurnameMin = 2;
+export const registerAdministratorBodySurnameMax = 80;
+
+export const registerAdministratorBodyEmailMax = 200;
+
+export const registerAdministratorBodyPasswordMin = 12;
+export const registerAdministratorBodyPasswordMax = 72;
+
+
+
+export const RegisterAdministratorBody = zod.object({
+  "fullName": zod.string().min(registerAdministratorBodyFullNameMin).max(registerAdministratorBodyFullNameMax),
+  "surname": zod.string().min(registerAdministratorBodySurnameMin).max(registerAdministratorBodySurnameMax),
+  "email": zod.string().email().max(registerAdministratorBodyEmailMax),
+  "password": zod.string().min(registerAdministratorBodyPasswordMin).max(registerAdministratorBodyPasswordMax)
+})
+
+export const RegisterAdministratorResponse = zod.object({
+  "email": zod.string(),
+  "status": zod.enum(['pending']),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Administrator-only list of self-registration requests
+ */
+export const GetAdministratorRegistrationRequestsResponseItem = zod.object({
+  "id": zod.string(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "reviewedAt": zod.string().nullable(),
+  "fullName": zod.string(),
+  "surname": zod.string(),
+  "email": zod.string(),
+  "createdAt": zod.string()
+})
+export const GetAdministratorRegistrationRequestsResponse = zod.array(GetAdministratorRegistrationRequestsResponseItem)
+
+
+/**
+ * @summary Approve or reject one pending administrator account
+ */
+export const ReviewAdministratorRegistrationParams = zod.object({
+  "id": zod.coerce.string().describe('UUID of the pending administrator account')
+})
+
+export const ReviewAdministratorRegistrationBody = zod.object({
+  "decision": zod.enum(['approve', 'reject'])
+})
+
+export const ReviewAdministratorRegistrationResponse = zod.object({
+  "id": zod.string(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "reviewedAt": zod.string().nullable(),
+  "fullName": zod.string(),
+  "surname": zod.string(),
+  "email": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
  * @summary Signed-in user's completed scans this South African calendar week
  */
 export const GetWeeklyUsageResponse = zod.object({
@@ -86,6 +153,8 @@ export const GetAdminAnalyticsResponse = zod.object({
 
 export const GetAdministratorAccountsResponseItem = zod.object({
   "id": zod.string(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "reviewedAt": zod.string().nullable(),
   "fullName": zod.string(),
   "surname": zod.string(),
   "email": zod.string(),
@@ -116,6 +185,8 @@ export const CreateAdministratorAccountBody = zod.object({
 
 export const CreateAdministratorAccountResponse = zod.object({
   "id": zod.string(),
+  "approvalStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "reviewedAt": zod.string().nullable(),
   "fullName": zod.string(),
   "surname": zod.string(),
   "email": zod.string(),

@@ -23,6 +23,8 @@ import type {
   AdminAnalytics,
   AdministratorAccount,
   AdministratorCreateInput,
+  AdministratorRegistrationResult,
+  AdministratorReviewInput,
   BackupFile,
   BackupOverview,
   EmailAdminReport202,
@@ -61,6 +63,260 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getRegisterAdministratorUrl = () => {
+
+
+
+
+  return `/api/auth/admin-register`
+}
+
+/**
+ * @summary Create a separate administrator account pending administrator approval
+ */
+export const registerAdministrator = async (administratorCreateInput: AdministratorCreateInput, options?: Parameters<typeof customFetch>[1]): Promise<AdministratorRegistrationResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdministratorRegistrationResult>(getRegisterAdministratorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(administratorCreateInput)
+  }
+);}
+
+
+
+
+
+export const getRegisterAdministratorMutationKey = () => ['registerAdministrator'] as const;
+
+export const getRegisterAdministratorMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerAdministrator>>, TError,RegisterAdministratorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof registerAdministrator>>, TError,RegisterAdministratorMutationVariables, TContext> => {
+
+const mutationKey = getRegisterAdministratorMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registerAdministrator>>, RegisterAdministratorMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  registerAdministrator(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegisterAdministratorMutationResult = NonNullable<Awaited<ReturnType<typeof registerAdministrator>>>
+    export type RegisterAdministratorMutationBody = BodyType<AdministratorCreateInput>
+    export type RegisterAdministratorMutationError = ErrorType<unknown>
+    export type RegisterAdministratorMutationVariables = {data: BodyType<AdministratorCreateInput>}
+
+    /**
+ * @summary Create a separate administrator account pending administrator approval
+ */
+export const useRegisterAdministrator = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerAdministrator>>, TError,RegisterAdministratorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof registerAdministrator>>,
+        TError,
+        RegisterAdministratorMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRegisterAdministratorMutationOptions(options));
+    }
+
+export const getGetAdministratorRegistrationRequestsUrl = () => {
+
+
+
+
+  return `/api/admin/registration-requests`
+}
+
+/**
+ * @summary Administrator-only list of self-registration requests
+ */
+export const getAdministratorRegistrationRequests = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdministratorAccount[]> => {
+
+  return customFetch<AdministratorAccount[]>(getGetAdministratorRegistrationRequestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdministratorRegistrationRequestsQueryKey = () => {
+    return [
+    `/api/admin/registration-requests`
+    ] as const;
+    }
+
+
+export const getGetAdministratorRegistrationRequestsQueryOptions = <TData = Awaited<ReturnType<typeof getAdministratorRegistrationRequests>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdministratorRegistrationRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdministratorRegistrationRequestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdministratorRegistrationRequests>>> = ({ signal }) => getAdministratorRegistrationRequests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdministratorRegistrationRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdministratorRegistrationRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdministratorRegistrationRequests>>>
+export type GetAdministratorRegistrationRequestsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Administrator-only list of self-registration requests
+ */
+
+export function useGetAdministratorRegistrationRequests<TData = Awaited<ReturnType<typeof getAdministratorRegistrationRequests>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdministratorRegistrationRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdministratorRegistrationRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReviewAdministratorRegistrationUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/registration-requests/${id}/review`
+}
+
+/**
+ * @summary Approve or reject one pending administrator account
+ */
+export const reviewAdministratorRegistration = async (id: string,
+    administratorReviewInput: AdministratorReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<AdministratorAccount> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdministratorAccount>(getReviewAdministratorRegistrationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(administratorReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewAdministratorRegistrationMutationKey = () => ['reviewAdministratorRegistration'] as const;
+
+export const getReviewAdministratorRegistrationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewAdministratorRegistration>>, TError,ReviewAdministratorRegistrationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewAdministratorRegistration>>, TError,ReviewAdministratorRegistrationMutationVariables, TContext> => {
+
+const mutationKey = getReviewAdministratorRegistrationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewAdministratorRegistration>>, ReviewAdministratorRegistrationMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reviewAdministratorRegistration(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewAdministratorRegistrationMutationResult = NonNullable<Awaited<ReturnType<typeof reviewAdministratorRegistration>>>
+    export type ReviewAdministratorRegistrationMutationBody = BodyType<AdministratorReviewInput>
+    export type ReviewAdministratorRegistrationMutationError = ErrorType<unknown>
+    export type ReviewAdministratorRegistrationMutationVariables = {id: string;data: BodyType<AdministratorReviewInput>}
+
+    /**
+ * @summary Approve or reject one pending administrator account
+ */
+export const useReviewAdministratorRegistration = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewAdministratorRegistration>>, TError,ReviewAdministratorRegistrationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewAdministratorRegistration>>,
+        TError,
+        ReviewAdministratorRegistrationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewAdministratorRegistrationMutationOptions(options));
+    }
 
 export const getGetWeeklyUsageUrl = () => {
 

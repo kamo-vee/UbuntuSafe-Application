@@ -15,7 +15,8 @@ import {
 } from "../lib/email.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requestVerification } from "../lib/email-verification.js";
-import { registrationSchema } from "../lib/account-validation.js";
+import { registrationSchema, administratorSchema } from "../lib/account-validation.js";
+import { createAdministrator } from "../lib/admin-accounts.js";
 
 const router = Router();
 const loginRateLimit = rateLimit({
@@ -83,6 +84,22 @@ function securelyEqual(left: string, right: string) {
   return timingSafeEqual(leftHash, rightHash);
 }
 
+const administratorRegistrationLimit = rateLimit({
+  windowMs: 60 * 60000, limit: 10, standardHeaders: true, legacyHeaders: false,
+  message: { message: "Too many administrator registration requests. Try again later." },
+});
+router.post("/admin-register", administratorRegistrationLimit, async (req, res, next) => {
+  try {
+    const input = administratorSchema.parse(req.body);
+    const account = await createAdministrator(input, "self-registration", "pending");
+    // No JWT, normal-user account, or privileges are issued by public registration.
+    res.status(202).json({
+      email: account.email, status: "pending",
+      message: "Your administrator account was created and is waiting for approval. An existing administrator must approve it before you can sign in.",
+    });
+  } catch (error) { next(error); }
+});
+
 router.post("/admin-login", adminLoginRateLimit, async (req, res, next) => {
   try {
     const body = z.object({
@@ -101,6 +118,14 @@ router.post("/admin-login", adminLoginRateLimit, async (req, res, next) => {
         if (!rootConfigured && !account)
           return res.status(503).json({ message: "Administrator sign-in is not configured correctly on this server." });
       return res.status(401).json({ message: "The administrator email or password is incorrect." });
+      }
+      if (account.approvalStatus !== "approved") {
+        const pending = account.approvalStatus === "pending";
+        return res.status(403).json({
+          code: pending ? "ADMIN_APPROVAL_PENDING" : "ADMIN_REQUEST_REJECTED",
+          message: pending ? "Your administrator account is waiting for approval. Contact an existing administrator."
+            : "Your administrator account request was not approved. Contact an existing administrator.",
+        });
       }
       adminId = account.id; displayName = `${account.fullName} ${account.surname}`;
       await db.update(ubuntuAdmins).set({ lastSignedInAt: new Date() }).where(eq(ubuntuAdmins.id, account.id));

@@ -11,6 +11,59 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /auth/admin-register:
+    post:
+      operationId: registerAdministrator
+      summary: Create a separate administrator account pending administrator approval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdministratorCreateInput"
+      responses:
+        "202":
+          description: Account created without granting administrator access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdministratorRegistrationResult"
+  /admin/registration-requests:
+    get:
+      operationId: getAdministratorRegistrationRequests
+      summary: Administrator-only list of self-registration requests
+      responses:
+        "200":
+          description: Registration requests without credentials
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdministratorAccount"
+  /admin/registration-requests/{id}/review:
+    post:
+      operationId: reviewAdministratorRegistration
+      summary: Approve or reject one pending administrator account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID of the pending administrator account
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdministratorReviewInput"
+      responses:
+        "200":
+          description: Reviewed administrator account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdministratorAccount"
   /usage/week:
     get:
       operationId: getWeeklyUsage
@@ -193,6 +246,18 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    AdministratorReviewInput:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [approve, reject] }
+    AdministratorRegistrationResult:
+      type: object
+      required: [email, status, message]
+      properties:
+        email: { type: string }
+        status: { type: string, enum: [pending] }
+        message: { type: string }
     WeeklyUsage:
       type: object
       required: [weekStart, weekEnd, scans]
@@ -218,9 +283,11 @@ components:
         password: { type: string, minLength: 12, maxLength: 72 }
     AdministratorAccount:
       type: object
-      required: [id, fullName, surname, email, createdAt]
+      required: [id, fullName, surname, email, createdAt, approvalStatus, reviewedAt]
       properties:
         id: { type: string }
+        approvalStatus: { type: string, enum: [pending, approved, rejected] }
+        reviewedAt: { type: [string, "null"] }
         fullName: { type: string }
         surname: { type: string }
         email: { type: string }

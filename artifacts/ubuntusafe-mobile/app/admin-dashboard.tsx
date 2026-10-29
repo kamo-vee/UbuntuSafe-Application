@@ -8,6 +8,7 @@ import { AdminBackupSummary } from "@/components/AdminBackupSummary";
 import { ColumnChart, TOOL_CODES, UsageDiagram, toolLabel } from "@/components/AdminCharts";
 import { AdminCreateAccount } from "@/components/AdminCreateAccount";
 import { AdminRecords } from "@/components/AdminRecords";
+import { AdminRegistrationRequests } from "@/components/AdminRegistrationRequests";
 import { downloadAdminReport, errorMessage } from "@/lib/admin-export";
 import { apiRequest } from "@/lib/api";
 
@@ -140,6 +141,7 @@ function AuthorizedAdminDashboard() {
       <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Latest 500 records per section. CSV includes all active records. Older screenshot checks remain in Message totals.</Text>
       {d ? <AdminRecords data={d} /> : null}
       <AdminBackupSummary />
+      <AdminRegistrationRequests />
       <AdminCreateAccount />
     </ScrollView>
   );

@@ -5,9 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AdministratorAccountApprovalStatus } from './administratorAccountApprovalStatus';
 
 export interface AdministratorAccount {
   id: string;
+  approvalStatus: AdministratorAccountApprovalStatus;
+  /** @nullable */
+  reviewedAt: string | null;
   fullName: string;
   surname: string;
   email: string;

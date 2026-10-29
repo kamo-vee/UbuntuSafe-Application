@@ -1,11 +1,12 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import bcrypt from "bcryptjs";
-import { and, db, eq, isNull, ubuntuAdmins, ubuntuUsers } from "@workspace/db";
+import { z } from "zod";
+import { and, db, desc, eq, isNull, ubuntuAdmins } from "@workspace/db";
 import { requireAuth } from "../middleware/auth.js";
 import { administratorSchema } from "../lib/account-validation.js";
 import { adminAnalytics, adminReportCsv } from "../lib/admin-analytics.js";
 import { sendAdministratorReport } from "../lib/email.js";
+import { administratorPublicFields, createAdministrator } from "../lib/admin-accounts.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -19,27 +20,42 @@ router.get("/analytics", async (_req, res, next) => {
 });
 router.get("/accounts", async (_req, res, next) => {
   try {
-    res.json(await db.select({ id: ubuntuAdmins.id, fullName: ubuntuAdmins.fullName, surname: ubuntuAdmins.surname,
-      email: ubuntuAdmins.email, createdAt: ubuntuAdmins.createdAt }).from(ubuntuAdmins).where(isNull(ubuntuAdmins.deletedAt)));
+    res.json(await db.select(administratorPublicFields).from(ubuntuAdmins)
+      .where(and(isNull(ubuntuAdmins.deletedAt), eq(ubuntuAdmins.approvalStatus, "approved"))));
   } catch (error) { next(error); }
 });
 router.post("/accounts", async (req, res, next) => {
   try {
     const body = administratorSchema.parse(req.body);
-    const [admin] = await db.select({ id: ubuntuAdmins.id }).from(ubuntuAdmins).where(eq(ubuntuAdmins.email, body.email)).limit(1);
-    const [user] = await db.select({ id: ubuntuUsers.id }).from(ubuntuUsers).where(eq(ubuntuUsers.email, body.email)).limit(1);
-    if (admin || user || body.email === process.env.UBUNTUSAFE_ADMIN_EMAIL?.trim().toLowerCase())
-      return res.status(409).json({ message: "This email is already in use. Choose a different administrator email.",
-        fieldErrors: { email: "This email is already in use." } });
-    const [created] = await db.insert(ubuntuAdmins).values({ fullName: body.fullName, surname: body.surname, email: body.email,
-      passwordHash: await bcrypt.hash(body.password, 12), createdBy: req.user!.id })
-      .returning({ id: ubuntuAdmins.id, fullName: ubuntuAdmins.fullName, surname: ubuntuAdmins.surname, email: ubuntuAdmins.email, createdAt: ubuntuAdmins.createdAt });
+    const created = await createAdministrator(body, req.user!.id, "approved");
     return res.status(201).json(created);
   } catch (error) {
     if (typeof error === "object" && error && "code" in error && error.code === "23505")
       return res.status(409).json({ message: "This administrator email is already in use.", fieldErrors: { email: "This email is already in use." } });
     return next(error);
   }
+});
+router.get("/registration-requests", async (_req, res, next) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await db.select(administratorPublicFields).from(ubuntuAdmins)
+      .where(and(isNull(ubuntuAdmins.deletedAt), eq(ubuntuAdmins.createdBy, "self-registration")))
+      .orderBy(desc(ubuntuAdmins.createdAt)));
+  } catch (error) { next(error); }
+});
+router.post("/registration-requests/:id/review", async (req, res, next) => {
+  try {
+    const id = z.string().uuid("Choose a valid administrator request.").parse(req.params.id);
+    const body = z.object({ decision: z.enum(["approve", "reject"]) }).parse(req.body);
+    const [account] = await db.update(ubuntuAdmins).set({
+      approvalStatus: body.decision === "approve" ? "approved" : "rejected",
+      reviewedAt: new Date(), reviewedBy: req.user!.id,
+    }).where(and(eq(ubuntuAdmins.id, id), isNull(ubuntuAdmins.deletedAt),
+      eq(ubuntuAdmins.createdBy, "self-registration"), eq(ubuntuAdmins.approvalStatus, "pending")))
+      .returning(administratorPublicFields);
+    if (!account) return res.status(409).json({ message: "This request is no longer pending. Refresh the request list." });
+    return res.json(account);
+  } catch (error) { return next(error); }
 });
 router.get("/export", async (_req, res, next) => {
   try {

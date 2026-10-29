@@ -48,7 +48,7 @@ export async function requireAuth(
       }
       const [admin] = await db.select().from(ubuntuAdmins)
         .where(and(eq(ubuntuAdmins.id, tokenUser.id), isNull(ubuntuAdmins.deletedAt))).limit(1);
-      if (!admin) { res.status(401).json({ message: "Administrator account not found. Sign in again." }); return; }
+      if (!admin || admin.approvalStatus !== "approved") { res.status(401).json({ message: "Approved administrator account not found. Sign in again." }); return; }
       fullName = `${admin.fullName} ${admin.surname}`;
     }
     req.user = {

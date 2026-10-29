@@ -183,6 +183,16 @@ pnpm.cmd services:test-delivery --confirm-send --email-to YOUR_EMAIL_ADDRESS
 
 Check inbox/spam for the message. Never post `.env`, passwords or keys in chat.
 
+## Separate user and administrator registration
+
+Choose **Create user account** from the user entry screen for an ordinary account. This keeps the normal email-verification process and does not grant administrator access.
+
+Choose **Create administrator account** from administrator sign-in for a separate administrator registration. No ordinary user account is required. The new administrator account stays **pending** and cannot sign in until an existing administrator approves it under **Administrator requests** on the dashboard. Rejected requests cannot sign in. Registration and approval do not currently send notification emails.
+
+For the first administrator, the app owner configures `UBUNTUSAFE_ADMIN_EMAIL` and `UBUNTUSAFE_ADMIN_PASSWORD` privately in the root `.env`, then uses administrator sign-in. That administrator can approve registration requests or create an approved administrator directly with **Add administrator**. Never make public registration grant administrator privileges automatically.
+
+After updating an existing installation, run `pnpm db:migrate` before starting the updated API. The additive migration preserves existing administrators' approved access.
+
 ## Automatic backups, user/admin restore and GitHub
 
 Read **[BACKUP-RESTORE.md](BACKUP-RESTORE.md)** for the encryption key, PostgreSQL tool paths, daily Windows tasks, separate-empty-database disaster recovery and private GitHub source backup setup. The app's Backups and restore page shows real backup status and recoverable records.
