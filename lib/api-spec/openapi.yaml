@@ -1,0 +1,459 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+paths:
+  /auth/admin-register:
+    post:
+      operationId: registerAdministrator
+      summary: Create a separate administrator account pending administrator approval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdministratorCreateInput"
+      responses:
+        "202":
+          description: Account created without granting administrator access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdministratorRegistrationResult"
+  /admin/registration-requests:
+    get:
+      operationId: getAdministratorRegistrationRequests
+      summary: Administrator-only list of self-registration requests
+      responses:
+        "200":
+          description: Registration requests without credentials
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdministratorAccount"
+  /admin/registration-requests/{id}/review:
+    post:
+      operationId: reviewAdministratorRegistration
+      summary: Approve or reject one pending administrator account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID of the pending administrator account
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdministratorReviewInput"
+      responses:
+        "200":
+          description: Reviewed administrator account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdministratorAccount"
+  /usage/week:
+    get:
+      operationId: getWeeklyUsage
+      summary: Signed-in user's completed scans this South African calendar week
+      responses:
+        "200":
+          description: Owned active scans, Monday through Sunday
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyUsage"
+  /admin/analytics:
+    get:
+      operationId: getAdminAnalytics
+      summary: Administrator dashboard totals and completed tool usage
+      responses:
+        "200":
+          description: Live administrator statistics and recent records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnalytics"
+  /admin/accounts:
+    get:
+      operationId: getAdministratorAccounts
+      responses:
+        "200":
+          description: Additional administrator accounts, never password hashes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdministratorAccount"
+    post:
+      operationId: createAdministratorAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdministratorCreateInput"
+      responses:
+        "201":
+          description: Created administrator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdministratorAccount"
+  /admin/export:
+    get:
+      operationId: exportAdminReport
+      summary: Download the full administrator CSV report
+      responses:
+        "200":
+          description: CSV report containing usage, scan records, reports and feedback
+          content:
+            text/csv:
+              schema: { type: string }
+  /admin/export/email:
+    post:
+      operationId: emailAdminReport
+      summary: Send the CSV report to the configured administrator email
+      responses:
+        "202":
+          description: SMTP accepted the report; inbox delivery is not guaranteed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accepted, recipient, message]
+                properties:
+                  accepted: { type: boolean }
+                  recipient: { type: string }
+                  message: { type: string }
+  /backup:
+    get:
+      operationId: getBackupOverview
+      summary: View authorized backup status and recoverable records
+      responses:
+        "200":
+          description: Role-scoped recovery overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupOverview"
+  /backup/database:
+    post:
+      operationId: createDatabaseBackup
+      summary: Administrator creates an encrypted full database backup
+      responses:
+        "201":
+          description: Backup completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupFile"
+  /backup/snapshot:
+    post:
+      operationId: createPersonalSnapshot
+      summary: Save an encrypted snapshot of the signed-in user's records
+      responses:
+        "201":
+          description: Snapshot completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupFile"
+  /backup/restore:
+    post:
+      operationId: restoreBackupRecord
+      summary: Restore a deleted record or missing personal snapshot records
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecoveryInput"
+      responses:
+        "200":
+          description: Restore result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryResult"
+  /auth/email-verification/request:
+    post:
+      operationId: requestEmailVerification
+      summary: Send or resend an email verification code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailVerificationRequest"
+      responses:
+        "202":
+          description: Request processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationStatus"
+        "429":
+          description: Too many requests
+        "503":
+          description: Email provider unavailable
+  /auth/email-verification/confirm:
+    post:
+      operationId: confirmEmailVerification
+      summary: Verify a single-use email code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailVerificationConfirmation"
+      responses:
+        "200":
+          description: Email verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationStatus"
+        "400":
+          description: Invalid, expired, or exhausted code
+        "429":
+          description: Too many attempts
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+components:
+  schemas:
+    AdministratorReviewInput:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [approve, reject] }
+    AdministratorRegistrationResult:
+      type: object
+      required: [email, status, message]
+      properties:
+        email: { type: string }
+        status: { type: string, enum: [pending] }
+        message: { type: string }
+    WeeklyUsage:
+      type: object
+      required: [weekStart, weekEnd, scans]
+      properties:
+        weekStart: { type: string }
+        weekEnd: { type: string }
+        scans:
+          type: array
+          items:
+            type: object
+            required: [id, tool, createdAt]
+            properties:
+              id: { type: string }
+              tool: { type: string }
+              createdAt: { type: string }
+    AdministratorCreateInput:
+      type: object
+      required: [fullName, surname, email, password]
+      properties:
+        fullName: { type: string, minLength: 2, maxLength: 80 }
+        surname: { type: string, minLength: 2, maxLength: 80 }
+        email: { type: string, format: email, maxLength: 200 }
+        password: { type: string, minLength: 12, maxLength: 72 }
+    AdministratorAccount:
+      type: object
+      required: [id, fullName, surname, email, createdAt, approvalStatus, reviewedAt]
+      properties:
+        id: { type: string }
+        approvalStatus: { type: string, enum: [pending, approved, rejected] }
+        reviewedAt: { type: [string, "null"] }
+        fullName: { type: string }
+        surname: { type: string }
+        email: { type: string }
+        createdAt: { type: string }
+    AdminAnalytics:
+      type: object
+      required: [generatedAt, weekStart, weekEnd, adminEmail, totals, tools, daily, userTools, scanRecords, reports, feedback]
+      properties:
+        generatedAt: { type: string }
+        weekStart: { type: string }
+        weekEnd: { type: string }
+        adminEmail: { type: string }
+        totals:
+          type: object
+          required: [users, activeUsers, scans, reports, feedback]
+          properties:
+            users: { type: integer }
+            activeUsers: { type: integer }
+            scans: { type: integer }
+            reports: { type: integer }
+            feedback: { type: integer }
+        tools:
+          type: array
+          items:
+            type: object
+            required: [tool, count, users]
+            properties:
+              tool: { type: string }
+              count: { type: integer }
+              users: { type: integer }
+        daily:
+          type: array
+          items:
+            type: object
+            required: [date, count]
+            properties:
+              date: { type: string }
+              count: { type: integer }
+        userTools:
+          type: array
+          items:
+            type: object
+            required: [userId, fullName, surname, email, tool, count, lastUsedAt]
+            properties:
+              userId: { type: string }
+              fullName: { type: string }
+              surname: { type: string }
+              email: { type: string }
+              tool: { type: string }
+              count: { type: integer }
+              lastUsedAt: { type: string }
+        scanRecords:
+          type: array
+          items:
+            type: object
+            required: [id, userId, fullName, email, tool, status, title, createdAt]
+            properties:
+              id: { type: string }
+              userId: { type: string }
+              fullName: { type: string }
+              email: { type: string }
+              tool: { type: string }
+              status: { type: string }
+              title: { type: string }
+              createdAt: { type: string }
+        reports:
+          type: array
+          items:
+            type: object
+            required: [id, fullName, email, category, status, details, createdAt]
+            properties:
+              id: { type: string }
+              fullName: { type: string }
+              email: { type: string }
+              category: { type: string }
+              status: { type: string }
+              details: { type: string }
+              createdAt: { type: string }
+        feedback:
+          type: array
+          items:
+            type: object
+            required: [id, fullName, email, message, createdAt]
+            properties:
+              id: { type: string }
+              fullName: { type: string }
+              email: { type: string }
+              message: { type: string }
+              createdAt: { type: string }
+    BackupFile:
+      type: object
+      required: [id, createdAt, bytes]
+      properties:
+        id: { type: string }
+        createdAt: { type: string }
+        bytes: { type: number }
+    RecoveryInput:
+      type: object
+      required: [action, id]
+      properties:
+        action: { type: string, enum: [record, snapshot] }
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [scans, reports, feedback, users] }
+    RecoveryResult:
+      type: object
+      required: [restored, message]
+      properties:
+        restored: { type: number }
+        message: { type: string }
+    DeletedRecord:
+      type: object
+      required: [kind, id, title, deletedAt]
+      properties:
+        kind: { type: string, enum: [scans, reports, feedback, users] }
+        id: { type: string }
+        title: { type: string }
+        deletedAt: { type: string }
+    BackupOverview:
+      type: object
+      required: [role, enabled, ready, message, scheduleHours, retentionDays, databaseBackups, snapshots, deleted]
+      properties:
+        role: { type: string, enum: [user, admin] }
+        enabled: { type: boolean }
+        ready: { type: boolean }
+        message: { type: string }
+        scheduleHours: { type: number }
+        retentionDays: { type: number }
+        databaseBackups:
+          type: array
+          items: { $ref: "#/components/schemas/BackupFile" }
+        snapshots:
+          type: array
+          items: { $ref: "#/components/schemas/BackupFile" }
+        deleted:
+          type: array
+          items: { $ref: "#/components/schemas/DeletedRecord" }
+    EmailVerificationRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 200
+    EmailVerificationConfirmation:
+      type: object
+      required: [email, code]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 200
+        code:
+          type: string
+          pattern: '^\d{6}$'
+    VerificationStatus:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+

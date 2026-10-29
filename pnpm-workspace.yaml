@@ -1,0 +1,30 @@
+packages:
+  - artifacts/*
+  - lib/*
+
+autoInstallPeers: false
+
+catalog:
+  '@tanstack/react-query': '^5.90.21'
+  '@types/node': '^25.3.3'
+  'drizzle-orm': '^0.45.2'
+  'zod': '4.6.6'
+
+onlyBuiltDependencies:
+  - esbuild
+  - '@swc/core'
+
+overrides:
+  'decode-uri-component@0.2.2': 'file:lib/uri-decoder-compat'
+  'brace-expansion@5.0.9': 5.0.12
+  'markdown-it@14.3.1': 14.3.3
+  'source-map-js@1.2.1': 1.2.2
+  'fast-uri@3.1.7': 3.1.9
+  'qs@6.16.0': 6.16.1
+  'node-forge@1.4.0': 1.4.2
+  'xcode>uuid': 11.1.1
+  proxy-addr: 2.0.8
+  body-parser: 2.4.0
+  '@esbuild-kit/esm-loader': npm:tsx@^4.21.0
+  esbuild: 0.28.2
+  js-yaml: 4.3.2
