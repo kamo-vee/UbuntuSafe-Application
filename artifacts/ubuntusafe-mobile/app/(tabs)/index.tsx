@@ -98,7 +98,6 @@ export default function DashboardScreen() {
       contentContainerStyle={styles.content}
     >
       <BrandLogo iconSize={34} textSize={19} />
-
       <Text style={[styles.title, { color: colors.foreground }]}>
         {t("welcomeName").replace("{name}", user.fullName)}
       </Text>

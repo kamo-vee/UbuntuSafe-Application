@@ -24,9 +24,6 @@ import {
   requestRecordingPermissionsAsync,
   useAudioRecorder,
 } from "expo-audio";
-import { WeeklyScanSummary } from "@/components/WeeklyScanSummary";
-import { LogoutButton } from "@/components/LogoutButton";
-import { weeklyUsage } from "@/lib/weekly-usage";
 
 export default function ToolScreen() {
   const router = useRouter();
@@ -37,7 +34,6 @@ export default function ToolScreen() {
   const [content, setContent] = useState("");
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [scanRevision, setScanRevision] = useState(0);
   const [notice, setNotice] = useState<{
     title: string;
     message: string;
@@ -142,8 +138,6 @@ export default function ToolScreen() {
         detail: "Just now",
         status: remote.status,
       });
-      setScanRevision(value => value + 1);
-      const usage = await weeklyUsage(user.id);
       const resultDetail = remote.analysisMode === "rules"
         ? `${remote.detail}\n\nAI risk analysis is not configured; this result uses local rules.`
         : remote.detail;
@@ -152,7 +146,6 @@ export default function ToolScreen() {
         `Heuristic risk score: ${remote.riskScore}/100 (not a probability)`,
         `Suspicious indicators: ${remote.suspiciousIndicators.length ? remote.suspiciousIndicators.join(", ") : "No common indicators found."}`,
         `Recommended actions: ${remote.recommendedActions.join(" ")}`,
-        `This week: ${usage.total} completed scans across all tools. ${label}: ${usage.tools.find(item => item.tool === (isScreenScan ? "screen" : scanKind))?.count ?? 0}.${!usage.connected ? " Count is based on this device." : ""}`,
       ].join("\n\n");
       showNotice(remote.title, report, [
         { text: "Done", onPress: () => goBackOrReplace(router, "/(tabs)") },
@@ -175,11 +168,9 @@ export default function ToolScreen() {
         detail: "Offline rule-based check",
         status: verdict.status,
       });
-      setScanRevision(value => value + 1);
-      const usage = await weeklyUsage(user.id);
       showNotice(
         `${verdict.title} (offline)`,
-        `${verdict.detail}\n\nLocal rule-based check only; server analysis was unavailable. This result will sync when you reconnect.\n\nThis week: ${usage.total} completed scans across all tools (${usage.connected ? "includes pending sync" : "this device only"}).`,
+        `${verdict.detail}\n\nLocal rule-based check only; server analysis was unavailable. This result will sync when you reconnect.`,
         [{ text: "Done", onPress: () => goBackOrReplace(router, "/(tabs)") }],
       );
     } finally {
@@ -329,9 +320,7 @@ export default function ToolScreen() {
   };
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled">
-      <LogoutButton disabled={busy || recording} />
       <Text style={[styles.title, { color: colors.foreground }]}>{label}</Text>
-      <WeeklyScanSummary revision={scanRevision} />
       <Text style={{ color: colors.mutedForeground }}>
         {isScreenScan
           ? Platform.OS === "web"

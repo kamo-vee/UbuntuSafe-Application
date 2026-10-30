@@ -163,6 +163,8 @@ export default function SettingsScreen() {
       </Pressable>
       <Pressable
         testID="logout-button"
+        accessibilityRole="button"
+        hitSlop={8}
         disabled={busy}
         onPress={() => void logout()}
         style={[
@@ -173,7 +175,7 @@ export default function SettingsScreen() {
         {busy ? (
           <ActivityIndicator color={colors.primaryForeground} />
         ) : (
-          <Text style={{ color: colors.primaryForeground, fontWeight: "800" }}>
+          <Text style={{ color: colors.primaryForeground, fontWeight: "700", fontSize: 12 }}>
             {t("signOut")}
           </Text>
         )}
@@ -271,9 +273,11 @@ const styles = StyleSheet.create({
   },
   hint: { fontSize: 12, lineHeight: 18, marginTop: -1, marginBottom: 8 },
   logout: {
-    height: 44,
+    height: 36,
+    paddingHorizontal: 14,
+    alignSelf: "center",
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 18,
