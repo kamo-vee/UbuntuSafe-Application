@@ -13,7 +13,6 @@ import { useApp } from "@/context/AppContext";
 import { BrandLogo } from "@/components/BrandLogo";
 import { clearScansForUser, listScans } from "@/lib/localDb";
 import { syncNow } from "@/lib/sync";
-import { LogoutButton } from "@/components/LogoutButton";
 import { WeeklyScanSummary } from "@/components/WeeklyScanSummary";
 
 export default function DashboardScreen() {
@@ -99,7 +98,7 @@ export default function DashboardScreen() {
       contentContainerStyle={styles.content}
     >
       <BrandLogo iconSize={34} textSize={19} />
-      <LogoutButton />
+
       <Text style={[styles.title, { color: colors.foreground }]}>
         {t("welcomeName").replace("{name}", user.fullName)}
       </Text>

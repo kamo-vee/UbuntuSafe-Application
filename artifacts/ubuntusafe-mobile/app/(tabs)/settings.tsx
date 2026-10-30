@@ -271,12 +271,12 @@ const styles = StyleSheet.create({
   },
   hint: { fontSize: 12, lineHeight: 18, marginTop: -1, marginBottom: 8 },
   logout: {
-    height: 52,
+    height: 44,
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 26,
+    marginTop: 18,
   },
   modalBackdrop: {
     flex: 1,
