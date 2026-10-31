@@ -71,9 +71,25 @@ export default function SettingsScreen() {
       <Text style={[styles.eyebrow, { color: colors.primary }]}>
         UBUNTUSAFE
       </Text>
-      <Text style={[styles.title, { color: colors.foreground }]}>
-        {t("settings")}
-      </Text>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.foreground }]}>
+          {t("settings")}
+        </Text>
+        <Pressable
+          testID="logout-button"
+          accessibilityRole="button"
+          hitSlop={8}
+          disabled={busy}
+          onPress={() => void logout()}
+          style={[styles.logout, { borderColor: colors.primary, backgroundColor: colors.primary }]}
+        >
+          {busy ? <ActivityIndicator color={colors.primaryForeground} /> : (
+            <Text style={{ color: colors.primaryForeground, fontWeight: "700", fontSize: 12 }}>
+              {t("signOut")}
+            </Text>
+          )}
+        </Pressable>
+      </View>
       <View
         style={[
           styles.profile,
@@ -161,25 +177,6 @@ export default function SettingsScreen() {
         <Text style={{ color: colors.foreground }}>Backups and restore</Text>
         <Text style={{ color: colors.primary }}>›</Text>
       </Pressable>
-      <Pressable
-        testID="logout-button"
-        accessibilityRole="button"
-        hitSlop={8}
-        disabled={busy}
-        onPress={() => void logout()}
-        style={[
-          styles.logout,
-          { borderColor: colors.primary, backgroundColor: colors.primary },
-        ]}
-      >
-        {busy ? (
-          <ActivityIndicator color={colors.primaryForeground} />
-        ) : (
-          <Text style={{ color: colors.primaryForeground, fontWeight: "700", fontSize: 12 }}>
-            {t("signOut")}
-          </Text>
-        )}
-      </Pressable>
       <Modal
         visible={languagePickerOpen}
         transparent
@@ -242,6 +239,7 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 28 },
   eyebrow: { fontWeight: "800", letterSpacing: 2 },
   title: { fontSize: 31, fontWeight: "800", marginTop: 8 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   profile: {
     minHeight: 78,
     borderWidth: 1,
@@ -275,12 +273,10 @@ const styles = StyleSheet.create({
   logout: {
     height: 36,
     paddingHorizontal: 14,
-    alignSelf: "center",
     borderWidth: 1,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 18,
   },
   modalBackdrop: {
     flex: 1,

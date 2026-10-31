@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -7,13 +7,12 @@ import {
   Text,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useApp } from "@/context/AppContext";
 import { BrandLogo } from "@/components/BrandLogo";
 import { clearScansForUser, listScans } from "@/lib/localDb";
 import { syncNow } from "@/lib/sync";
-import { WeeklyScanSummary } from "@/components/WeeklyScanSummary";
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -27,19 +26,33 @@ export default function DashboardScreen() {
   } = useApp();
   const [scans, setScans] = useState<Awaited<ReturnType<typeof listScans>>>([]);
   const [clearing, setClearing] = useState(false);
-  const load = async () => {
-    if (!user) return;
-    setScans(await listScans(user.id));
-    try {
-      await syncNow();
-      setScans(await listScans(user.id));
-    } catch {
-      /* local-first dashboard remains available */
-    }
-  };
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
+    if (!hydrated || !user) return;
+    let active = true;
+    let refreshing = false;
+    const load = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const local = await listScans(user.id);
+        if (active) setScans(local);
+        try {
+          await syncNow();
+        } catch {
+          /* local-first dashboard remains available */
+        }
+        const updated = await listScans(user.id);
+        if (active) setScans(updated);
+      } catch {
+        console.warn("Dashboard records could not be refreshed.");
+      } finally {
+        refreshing = false;
+      }
+    };
     void load();
-  }, [user?.id]);
+    const timer = setInterval(() => void load(), 60000);
+    return () => { active = false; clearInterval(timer); };
+  }, [user?.id, hydrated]));
   if (!hydrated || !user) return null;
   const monday = new Date(Date.now() + 2 * 3600000);
   monday.setUTCHours(0, 0, 0, 0);
@@ -101,7 +114,6 @@ export default function DashboardScreen() {
       <Text style={[styles.title, { color: colors.foreground }]}>
         {t("welcomeName").replace("{name}", user.fullName)}
       </Text>
-      <WeeklyScanSummary />
       <View style={styles.grid}>
         {[
           [
@@ -117,6 +129,7 @@ export default function DashboardScreen() {
             week.filter((scan) => scan.kind === "job" && scan.status === "safe")
               .length,
           ],
+          ["Weekly scan", week.length],
         ].map(([label, value]) => (
           <View
             key={String(label)}
@@ -125,9 +138,12 @@ export default function DashboardScreen() {
               { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
-            <Text style={[styles.value, { color: colors.primary }]}>
-              {value}
-            </Text>
+            <View style={styles.row}>
+              <Text style={[styles.value, { color: colors.primary }]}>
+                {value}
+              </Text>
+              {label === "Weekly scan" ? <Feather name="calendar" size={20} color={colors.primary} /> : null}
+            </View>
             <Text style={{ color: colors.mutedForeground }}>{label}</Text>
           </View>
         ))}

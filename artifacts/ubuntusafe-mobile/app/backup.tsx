@@ -88,10 +88,9 @@ export default function BackupScreen() {
       ) : <>
         <View style={card}>
           <Text style={[styles.h, { color: colors.foreground }]}>Status</Text>
-          <Text style={{ color: data.enabled && data.ready ? colors.primary : colors.destructive, fontWeight: "800" }}>{!data.enabled ? "Automatic backups disabled" : data.ready ? "Encryption configured" : "Setup required"}</Text>
-          <Text style={[styles.p, { color: colors.mutedForeground }]}>{data.message}</Text>
-          <Text style={[styles.p, { color: colors.mutedForeground }]}>Automatic backups every {data.scheduleHours} hours while the API is running. Kept for {data.retentionDays} days.</Text>
-          <Text style={[styles.p, { color: colors.mutedForeground }]}>Only code belongs on GitHub. Encrypted database backups stay private. Copy backups off this computer so a disk loss does not take them too.</Text>
+          <Text testID="backup-status" style={{ color: data.enabled && data.ready ? colors.primary : colors.destructive, fontWeight: "800" }}>
+            {!data.enabled ? "Automatic backups disabled" : !data.ready ? "Setup required: encryption key not configured" : `Automatic backup every ${data.scheduleHours} hrs`}
+          </Text>
         </View>
 
         {isAdmin ? <View style={card}>
