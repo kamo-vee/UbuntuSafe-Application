@@ -5,7 +5,7 @@ export function validateAccountFields(values: AccountFields): Partial<Record<Reg
   for (const key of ["fullName", "surname"] as const) {
     const label = key === "fullName" ? "Name" : "Surname";
     const name = values[key].trim();
-    if (name.length < 2 || (name.match(/\p{L}/gu) ?? []).length < 2) errors[key] = `Enter your ${label.toLowerCase()} using at least 2 letters.`;
+    if (name.length < 3 || (name.match(/\p{L}/gu) ?? []).length < 3) errors[key] = `Enter your ${label.toLowerCase()} using at least 3 letters.`;
     else if (name.length > 80) errors[key] = `${label} must be 80 characters or fewer.`;
     else if (!/^[\p{L}\p{M}][\p{L}\p{M} '’.-]*$/u.test(name)) errors[key] = `${label} may contain letters, spaces, apostrophes, hyphens and periods only.`;
   }

@@ -8,9 +8,9 @@ const NAME_RE = /^[\p{L}\p{M} '.-]+$/u;
 function name(v: string, label: string) {
   const t = v.trim();
   if (!t) return `${label} is required.`;
-  if (t.length < 2 || t.length > 80) return `${label} must be 2 to 80 characters.`;
+  if (t.length < 3 || t.length > 80) return `${label} must be 3 to 80 characters.`;
   if (!NAME_RE.test(t)) return `${label} may only use letters, spaces, apostrophes, hyphens and periods.`;
-  if ((t.match(/\p{L}/gu) ?? []).length < 2) return `${label} needs at least 2 letters.`;
+  if ((t.match(/\p{L}/gu) ?? []).length < 3) return `${label} needs at least 3 letters.`;
   return "";
 }
 
